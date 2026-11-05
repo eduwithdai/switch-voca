@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="color-scheme" content="light only">
+<meta name="theme-color" content="#eef1f6">
+<title>スイッチVOCA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+/* 明るい画面だけ（ダークモードなし）。つかう画面は大きなドーム型スイッチ、設定画面は紙面 */
+:root{
+  --stage:#eef1f6; --stage-2:#e4e8f0; --base:#c9cfda; --base-hi:#dfe3ea; --base-lo:#b3bac8; --base-edge:#a9b1bf; --divider:#cfd5df;
+  --paper:#f6f4ef; --card:#ffffff; --ink:#1f2633; --ink-2:#5b6474; --line:#dcd8cf;
+  --accent:#2f6fde; --danger:#d9483b; --ok:#2e9e5b;
+  --red:#e5483b; --yellow:#f2b705; --blue:#2f6fde; --green:#2e9e5b;
+  --font:"Zen Maru Gothic","Hiragino Maru Gothic ProN","BIZ UDPGothic","Hiragino Sans",system-ui,sans-serif;
+  color-scheme:light only;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:var(--font);background:var(--paper);color:var(--ink);-webkit-text-size-adjust:100%;overscroll-behavior:none}
+button{font:inherit;color:inherit}
+[hidden]{display:none!important}
+
+/* ===== 遊ぶ画面 ===== */
+#play{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--stage);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+#play *{-webkit-user-drag:none;user-drag:none;-webkit-tap-highlight-color:transparent}
+html,body{touch-action:pan-y}
+body.lock{overflow:hidden;position:fixed;inset:0;touch-action:none}
+#stage{flex:1;display:grid;min-height:0;gap:2px;background:var(--divider);cursor:pointer;
+  padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+#stage.n1,#stage.seq{grid-template-columns:1fr}
+#stage.n2{grid-template-columns:1fr 1fr}
+#stage.n3{grid-template-columns:1fr 1fr 1fr}
+@media (orientation:portrait){
+  #stage.n2{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
+  #stage.n3{grid-template-columns:1fr;grid-template-rows:1fr 1fr 1fr}
+}
+.slot{position:relative;display:grid;place-items:center;background:var(--stage);container-type:size;min-height:0;overflow:hidden}
+.slot:nth-child(2){background:var(--stage-2)}
+.base{width:min(82cqw,82cqh);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 40%,var(--base-hi),var(--base) 60%,var(--base-lo));
+  box-shadow:0 2.5cqmin 0 var(--base-edge),0 4cqmin 5cqmin rgba(40,50,70,.18)}
+.dome{width:84%;aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqmin;
+  color:var(--dink,#fff);
+  background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.55),rgba(255,255,255,0) 32%),
+    radial-gradient(circle at 50% 60%,var(--c),color-mix(in srgb,var(--c) 70%,#000) 100%);
+  box-shadow:inset 0 -2cqmin 0 rgba(0,0,0,.18),0 1.6cqmin 0 color-mix(in srgb,var(--c) 55%,#000);
+  transition:transform .08s ease-out,box-shadow .08s ease-out}
+.dome svg{width:42%;height:auto;overflow:visible}
+.dome .lbl{font-weight:900;font-size:min(11cqw,11cqh);line-height:1.1;text-align:center;padding:0 10%;
+  word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 .4cqmin 0 rgba(0,0,0,.12)}
+.dome.noicon .lbl{font-size:min(15cqw,15cqh)}
+.slot.hit .dome{transform:translateY(1.4cqmin) scale(.96);box-shadow:inset 0 -1cqmin 0 rgba(0,0,0,.18),0 .3cqmin 0 color-mix(in srgb,var(--c) 55%,#000)}
+.slot .ring{position:absolute;width:min(82cqw,82cqh);aspect-ratio:1;border-radius:50%;border:1.4cqmin solid var(--c);opacity:0;pointer-events:none}
+.slot.playing .ring{animation:ring 1.1s ease-out infinite}
+@keyframes ring{0%{transform:scale(.95);opacity:.75}100%{transform:scale(1.18);opacity:0}}
+.seqdots{position:absolute;bottom:3cqh;left:0;right:0;display:flex;justify-content:center;gap:2.4cqmin;pointer-events:none}
+.seqdots i{width:3cqmin;height:3cqmin;border-radius:50%;background:#c3c9d4}
+.seqdots i.on{background:var(--c);box-shadow:0 0 0 .6cqmin rgba(0,0,0,.08)}
+
+#gear{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));
+  width:52px;height:52px;border-radius:50%;border:0;background:rgba(31,38,51,.06);color:#7a8396;display:grid;place-items:center;
+  touch-action:none;z-index:5;--p:0}
+#gear svg{width:26px;height:26px}
+#gear::after{content:"";position:absolute;inset:-3px;border-radius:50%;
+  background:conic-gradient(var(--ink) calc(var(--p)*1turn),transparent 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0)}
+#gear:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#hint{position:absolute;top:calc(68px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));
+  background:var(--ink);color:#fff;font-size:13px;padding:6px 10px;border-radius:8px;z-index:5;pointer-events:none}
+
+/* コピーライト */
+.copy{flex:none;text-align:center;font-size:11px;letter-spacing:.02em;padding:6px 16px calc(6px + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--divider);color:#9a9fa8;background:var(--stage)}
+.copy.light{border-top:1px solid var(--line);color:#9a9fa8;background:transparent;margin-top:28px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+@media print{.copy{display:none!important}}
+
+/* ===== 設定画面 ===== */
+#settings{position:fixed;inset:0;overflow-y:auto;background:var(--paper);color:var(--ink);-webkit-overflow-scrolling:touch}
+.wrap{max-width:860px;margin:0 auto;padding-block:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;background:var(--paper);padding:calc(14px + env(safe-area-inset-top,0px)) 0 10px;z-index:3;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.appicon{position:relative;width:48px;height:48px;flex:none;border:0;padding:0;border-radius:12px;background:transparent;cursor:pointer;
+  touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;--p:0}
+.appicon svg{width:100%;height:100%;display:block;pointer-events:none}
+.appicon::after{content:"";position:absolute;inset:-4px;border-radius:15px;pointer-events:none;
+  background:conic-gradient(var(--accent) calc(var(--p)*1turn),transparent 0);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;padding:3px;opacity:calc(var(--p) * 10)}
+.appicon:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.top h1{font-size:22px;margin:0;font-weight:900;min-width:0;line-height:1.2}
+.top h1 small{display:block;font-size:12px;color:var(--ink-2);font-weight:500}
+.sheet{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:rgba(31,38,51,.35);
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet-box{background:var(--paper);border-radius:18px;width:min(560px,100%);max-height:100%;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(31,38,51,.25);overflow:hidden}
+.sheet-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.sheet-h b{flex:1;font-size:18px}
+.sheet-body{overflow-y:auto;padding:12px 16px 16px;-webkit-overflow-scrolling:touch}
+.btn{border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:10px 16px;font-weight:700;font-size:16px;cursor:pointer;min-height:46px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.rec{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.rec.on{animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{background:#a8342a}}
+.btn:disabled{opacity:.45}
+.btn:focus-visible,.seg button:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-spacing:.04em}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:transparent;padding:10px 18px;min-height:46px;font-weight:700;font-size:16px;cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.note{font-size:13px;color:var(--ink-2);margin:6px 0 0;line-height:1.6}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card-h{display:flex;align-items:center;gap:10px}
+.mini{width:54px;height:54px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--dink,#fff);
+  background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.5),rgba(255,255,255,0) 35%),var(--c);box-shadow:0 3px 0 color-mix(in srgb,var(--c) 55%,#000)}
+.mini svg{width:28px;height:28px}
+.card-h b{font-size:17px}
+.card label{font-size:13px;color:var(--ink-2);font-weight:700}
+.card input[type=text]{width:100%;font:inherit;font-size:18px;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.swatches,.icons,.keys{display:flex;flex-wrap:wrap;gap:8px}
+.sw{width:40px;height:40px;border-radius:50%;border:3px solid transparent;cursor:pointer;background:var(--c);box-shadow:inset 0 -3px 0 rgba(0,0,0,.18)}
+.sw[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
+.ic{width:44px;height:44px;border-radius:10px;border:1.5px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.ic svg{width:26px;height:26px}
+.ic[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+.ic .none{font-size:11px;font-weight:700}
+.status{font-size:14px;padding:8px 10px;border-radius:10px;background:#f0eee8}
+.status.has{background:#e3f3e9;color:#1f6b3e}
+.meter{height:8px;border-radius:4px;background:#eee;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .06s}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#eef1f7;font-size:14px;font-weight:700;border:0}
+.chip.learn{background:#fff4d6;animation:blink 1s steps(2) infinite}
+.toggle{display:flex;align-items:center;gap:10px;font-size:16px;cursor:pointer;padding:6px 0}
+.toggle input{width:24px;height:24px;accent-color:var(--accent)}
+.keylog{font-variant-numeric:tabular-nums;font-size:14px;color:var(--ink-2)}
+.file{position:relative;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.howto{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;font-size:14px;line-height:1.8}
+.howto ul{margin:0;padding-left:1.2em}
+.hist{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:4px 16px}
+.hist details{border-bottom:1px solid var(--line);padding:10px 0}
+.hist details:last-child{border-bottom:0}
+.hist summary{cursor:pointer;font-weight:700;display:flex;gap:12px;align-items:baseline;list-style:none}
+.hist summary::-webkit-details-marker{display:none}
+.hist summary::before{content:"";width:8px;height:8px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);transform:rotate(-45deg);flex:none;align-self:center;transition:transform .15s}
+.hist details[open] summary::before{transform:rotate(45deg)}
+.hist .v{font-variant-numeric:tabular-nums;min-width:3.4em}
+.hist .d{font-size:13px;color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
+.hist ul{margin:8px 0 2px;padding-left:1.4em;font-size:14px;line-height:1.8}
+@media (prefers-reduced-motion:reduce){.slot.playing .ring,.btn.rec.on,.chip.learn{animation:none}.dome{transition:none}}
+</style>
+</head>
+<body>
+
+<!-- ============ 遊ぶ画面 ============ -->
+<main id="play" aria-label="スイッチ">
+  <div id="stage" class="n1" role="button" aria-label="おすと 音が なります"></div>
+  <button id="gear" type="button" aria-label="設定（長押しで ひらく）">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+  <div id="hint" hidden>ながおしで せってい</div>
+  <footer class="copy"></footer>
+</main>
+
+<!-- ============ 設定画面 ============ -->
+<section id="settings" hidden aria-label="設定">
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <button class="appicon" id="appIcon" type="button" aria-label="スイッチVOCA（長押しで更新履歴）">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <rect x="1" y="1" width="46" height="46" rx="11" fill="#e4e8f0"/>
+            <circle cx="24" cy="26" r="16" fill="#b3bac8"/>
+            <circle cx="24" cy="24.5" r="16" fill="#c9cfda"/>
+            <circle cx="24" cy="25.5" r="11.5" fill="#b8352b"/>
+            <circle cx="24" cy="24" r="11.5" fill="#e5483b"/>
+            <ellipse cx="20" cy="19.5" rx="4.5" ry="3" fill="#fff" opacity=".5"/>
+          </svg>
+        </button>
+        <h1>スイッチVOCA<small>せってい　<span id="ver"></span></small></h1>
+      </div>
+      <button class="btn" id="fsBtn" type="button">全画面</button>
+      <button class="btn primary" id="doneBtn" type="button">つかう画面へ</button>
+    </div>
+
+    <h2>パターンの数</h2>
+    <div class="row">
+      <div class="seg" id="countSeg">
+        <button type="button" data-v="1">1つ</button><button type="button" data-v="2">2つ</button><button type="button" data-v="3">3つ</button>
+      </div>
+    </div>
+
+    <h2>鳴らし方</h2>
+    <div class="row">
+      <div class="seg" id="modeSeg">
+        <button type="button" data-v="each">ボタンごと</button><button type="button" data-v="seq">じゅんばんに</button>
+      </div>
+    </div>
+    <p class="note" id="modeNote"></p>
+
+    <h2>ボタンごとの音</h2>
+    <div class="cards" id="cards"></div>
+
+    <h2>反応のしかた</h2>
+    <div class="row">
+      <span>連打防止</span>
+      <div class="seg" id="debSeg">
+        <button type="button" data-v="0">なし</button><button type="button" data-v="500">0.5秒</button><button type="button" data-v="1000">1秒</button><button type="button" data-v="2000">2秒</button>
+      </div>
+    </div>
+    <label class="toggle"><input type="checkbox" id="blockChk">音が鳴っているあいだは、次の入力に反応しない</label>
+    <label class="toggle"><input type="checkbox" id="labelChk">ボタンに ことばを表示する</label>
+    <div class="row">
+      <span>録音がないボタン</span>
+      <div class="seg" id="fbSeg">
+        <button type="button" data-v="speak">ことばを読み上げ</button><button type="button" data-v="chime">チャイム</button>
+      </div>
+    </div>
+    <label class="toggle"><input type="checkbox" id="holdChk">設定ボタンは長押し（約1.5秒）でひらく</label>
+
+    <h2>スイッチ（外部入力）の確認</h2>
+    <div class="howto">
+      <div class="keylog" id="keylog">スイッチやキーを押すと、ここに表示されます。</div>
+      <ul class="note">
+        <li>iPadにつなぐスイッチインターフェースは、多くが「キーボード」として信号を送ります。各ボタンの「スイッチを登録」で、使うスイッチを押して覚えさせてください。</li>
+        <li>はじめの割り当て：1つ目＝スペース・Enter・1、2つ目＝2、3つ目＝3</li>
+        <li>iPadの「スイッチコントロール」がオンだと、信号がアプリに届きません。使うときはオフにしてください。</li>
+      </ul>
+    </div>
+
+    <footer class="copy light"></footer>
+  </div>
+</section>
+
+<div class="sheet" id="histSheet" hidden role="dialog" aria-modal="true" aria-labelledby="histTitle">
+  <div class="sheet-box">
+    <div class="sheet-h"><b id="histTitle">更新履歴</b><button class="btn" id="histClose" type="button">とじる</button></div>
+    <div class="sheet-body"><div class="hist" id="hist"></div></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const VERSION = "v1.2";
+
+/* ---------- イラスト（SVG） ---------- */
+const S = 'stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+const starPts = (() => { const p=[]; for(let k=0;k<10;k++){const r=k%2?16:34,a=-Math.PI/2+k*Math.PI/5;p.push((50+r*Math.cos(a)).toFixed(1)+","+(52+r*Math.sin(a)).toFixed(1));} return p.join(" "); })();
+const ICONS = {
+  none:  {name:"なし",  svg:""},
+  maru:  {name:"はい",  svg:`<circle cx="50" cy="50" r="30" ${S}/>`},
+  batsu: {name:"いいえ",svg:`<path d="M28 28 L72 72 M72 28 L28 72" ${S}/>`},
+  plus:  {name:"もっと",svg:`<path d="M50 22 V78 M22 50 H78" ${S}/>`},
+  note:  {name:"おんがく",svg:`<path d="M46 70 V24 L74 32 V44 L46 36" ${S}/><circle cx="34" cy="70" r="13" fill="currentColor"/>`},
+  star:  {name:"ほし",  svg:`<polygon points="${starPts}" fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>`},
+  heart: {name:"すき",  svg:`<path d="M50 80 C22 62 14 44 26 31 C36 21 48 26 50 37 C52 26 64 21 74 31 C86 44 78 62 50 80Z" fill="currentColor"/>`},
+  cup:   {name:"のみもの",svg:`<path d="M26 32 H64 V60 a14 14 0 0 1 -14 14 H40 a14 14 0 0 1 -14 -14 Z M64 40 h5 a9 9 0 0 1 0 18 h-5" ${S}/>`},
+  talk:  {name:"おはなし",svg:`<path d="M20 30 a9 9 0 0 1 9 -9 h42 a9 9 0 0 1 9 9 v24 a9 9 0 0 1 -9 9 H44 L28 76 V63 a9 9 0 0 1 -8 -9 Z" ${S}/>`}
+};
+const iconSVG = k => ICONS[k] && ICONS[k].svg ? `<svg viewBox="0 0 100 100" aria-hidden="true">${ICONS[k].svg}</svg>` : "";
+
+const COLORS = {
+  red:{c:"var(--red)",ink:"#fff",name:"あか"},
+  yellow:{c:"var(--yellow)",ink:"#2b2300",name:"きいろ"},
+  blue:{c:"var(--blue)",ink:"#fff",name:"あお"},
+  green:{c:"var(--green)",ink:"#fff",name:"みどり"}
+};
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
+
+/* ---------- 設定の保存（こわれたデータでも起動できるように点検してから使う） ---------- */
+const DEF = {
+  count:1, mode:"each", debounce:500, block:false, showLabel:true, fallback:"speak", hold:true,
+  slots:[
+    {color:"red",   icon:"maru",  text:"はい",   keys:["Space","Enter","Digit1"]},
+    {color:"blue",  icon:"batsu", text:"いいえ", keys:["Digit2"]},
+    {color:"yellow",icon:"plus",  text:"もっと", keys:["Digit3"]}
+  ]
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+function sanitize(raw){
+  const d = clone(DEF);
+  if (!raw || typeof raw !== "object") return d;
+  const pick = (v, ok, def) => ok.includes(v) ? v : def;
+  d.count = pick(raw.count, [1,2,3], d.count);
+  d.mode = pick(raw.mode, ["each","seq"], d.mode);
+  d.debounce = pick(raw.debounce, [0,500,1000,2000], d.debounce);
+  d.fallback = pick(raw.fallback, ["speak","chime"], d.fallback);
+  ["block","showLabel","hold"].forEach(k => { if (typeof raw[k] === "boolean") d[k] = raw[k]; });
+  if (Array.isArray(raw.slots)) raw.slots.slice(0,3).forEach((s, i) => {
+    if (!s || typeof s !== "object") return;
+    const t = d.slots[i];
+    if (COLORS[s.color]) t.color = s.color;
+    if (ICONS[s.icon]) t.icon = s.icon;
+    if (typeof s.text === "string") t.text = s.text.slice(0, 20);
+    if (Array.isArray(s.keys)) t.keys = [...new Set(s.keys.filter(k => typeof k === "string" && k))].slice(0, 8);
+  });
+  return d;
+}
+const LS = "switch-voca-settings";
+let st;
+try { st = sanitize(JSON.parse(localStorage.getItem(LS))); } catch(e) { st = sanitize(null); }
+const save = () => { try { localStorage.setItem(LS, JSON.stringify(st)); } catch(e) {} };
+
+/* ---------- 音の保存（IndexedDB） ---------- */
+const idb = (() => {
+  let p;
+  const open = () => p || (p = new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open("switch-voca", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("audio");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => { p = null; rej(r.error); };
+      r.onblocked = () => { p = null; rej(new Error("blocked")); };
+    } catch(e) { p = null; rej(e); }
+  }));
+  const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => {
+    const t = db.transaction("audio", mode); const r = fn(t.objectStore("audio"));
+    t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error("abort")); }); };
+  return { get:k=>tx("readonly",s=>s.get(k)), set:(k,v)=>tx("readwrite",s=>s.put(v,k)), del:k=>tx("readwrite",s=>s.delete(k)) };
+})();
+
+/* ---------- 音のしくみ ----------
+   ・録音した音は Web Audio（AudioBuffer）で鳴らす：遅れが少なく、iPadで2回目以降も確実に鳴る
+   ・準備ができていないときは <audio> で鳴らす（予備）
+   ・iPadは「最初の操作」のときに音の準備（アンロック）が必要。最初のタッチは指を離した瞬間に鳴らす */
+const blobs = [null,null,null], urls = [null,null,null], audios = [null,null,null], buffers = [null,null,null];
+const gen = [0,0,0];
+let actx = null, unlocked = false, jaVoice = null;
+
+function getCtx(){
+  if (!actx) { try { const C = window.AudioContext || window.webkitAudioContext; if (C) actx = new C(); } catch(e) { actx = null; } }
+  return actx;
+}
+function decodeBlob(i){
+  const c = getCtx(), b = blobs[i], g = gen[i];
+  buffers[i] = null;
+  if (!c || !b) return;
+  b.arrayBuffer().then(ab => new Promise((res, rej) => {
+    const r = c.decodeAudioData(ab, res, rej); if (r && r.then) r.then(res, rej);
+  })).then(buf => { if (gen[i] === g) buffers[i] = buf; }).catch(() => {});
+}
+function setAudio(i, blob){
+  stopAll();
+  gen[i]++;
+  if (urls[i]) { try { URL.revokeObjectURL(urls[i]); } catch(e) {} }
+  blobs[i] = blob || null; buffers[i] = null; audios[i] = null;
+  urls[i] = blob ? URL.createObjectURL(blob) : null;
+  if (urls[i]) { const a = new Audio(); a.preload = "auto"; a.src = urls[i]; audios[i] = a; }
+  if (blob && actx) decodeBlob(i);
+}
+async function loadAll(){
+  for (let i=0;i<3;i++){
+    const g = gen[i];
+    try { const b = await idb.get("slot"+i); if (b instanceof Blob && gen[i] === g && !blobs[i]) setAudio(i, b); } catch(e) {}
+  }
+}
+function pickVoice(){
+  try { const vs = speechSynthesis.getVoices(); jaVoice = vs.find(v => /^ja/i.test(v.lang)) || null; } catch(e) {}
+}
+if ("speechSynthesis" in window) { pickVoice(); try { speechSynthesis.addEventListener("voiceschanged", pickVoice); } catch(e) {} }
+
+/* 最初の操作（指を離す・クリック・キー）の中で呼ぶ */
+function unlockAudio(){
+  const c = getCtx();
+  if (c) {
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch(e) {}
+    try { if (c.state !== "running") c.resume(); } catch(e) {}
+    try { const src = c.createBufferSource(); src.buffer = c.createBuffer(1, 1, 22050); src.connect(c.destination); src.start(0); } catch(e) {}
+    for (let i=0;i<3;i++) if (blobs[i] && !buffers[i]) decodeBlob(i);
+  }
+  if (!unlocked && "speechSynthesis" in window) {
+    try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } catch(e) {}
+  }
+  unlocked = true;
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    if (actx && actx.state !== "running") { unlocked = false; try { actx.resume(); } catch(e) {} }
+    if (!playEl.hidden) requestWake();
+  } else { stopAll(); }
+});
+
+/* 再生の状態。古い再生の「おわり」の合図が、新しい再生を止めないように番号で区別する */
+let token = 0, playing = false, curPlay = -1, playTimer = 0, srcNode = null;
+function setPlaying(vis, maxMs){
+  clearTimeout(playTimer);
+  playing = vis >= 0; curPlay = vis;
+  document.querySelectorAll(".slot").forEach(s => s.classList.toggle("playing", +s.dataset.i === vis));
+  if (playing) { const t = token; playTimer = setTimeout(() => { if (t === token) setPlaying(-1); }, maxMs || 15000); }
+}
+const endIf = t => () => { if (t === token) setPlaying(-1); };
+function stopAll(){
+  token++;
+  if (srcNode) { try { srcNode.onended = null; srcNode.stop(); } catch(e) {} srcNode = null; }
+  audios.forEach(a => { if (a) { try { a.onended = null; a.pause(); a.currentTime = 0; } catch(e) {} } });
+  try { if ("speechSynthesis" in window && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); } catch(e) {}
+  setPlaying(-1);
+}
+function chime(){
+  const c = getCtx(); if (!c) return 0;
+  try { if (c.state !== "running") c.resume(); } catch(e) {}
+  const t = c.currentTime + 0.01;
+  [[784,0],[1047,.16]].forEach(([f,d]) => {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = "sine"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001,t+d); g.gain.exponentialRampToValueAtTime(0.5,t+d+.02); g.gain.exponentialRampToValueAtTime(0.0001,t+d+.7);
+    o.connect(g); g.connect(c.destination); o.start(t+d); o.stop(t+d+.75);
+  });
+  return 950;
+}
+function playSlot(i, vis){
+  if (vis === undefined) vis = i;
+  stopAll();
+  const t = token;
+  // 1) Web Audio（いちばん安定）
+  if (buffers[i] && actx && actx.state === "running") {
+    try {
+      const s = actx.createBufferSource(); s.buffer = buffers[i]; s.connect(actx.destination);
+      s.onended = endIf(t); srcNode = s; s.start(0);
+      setPlaying(vis, buffers[i].duration * 1000 + 800);
+      return;
+    } catch(e) { srcNode = null; }
+  }
+  // 2) <audio>（予備）
+  const a = audios[i];
+  if (a) {
+    try { a.currentTime = 0; } catch(e) {}
+    a.onended = endIf(t);
+    setPlaying(vis, isFinite(a.duration) && a.duration > 0 ? a.duration * 1000 + 800 : 31000);
+    try { const p = a.play(); if (p && p.catch) p.catch(endIf(t)); } catch(e) { setPlaying(-1); }
+    return;
+  }
+  // 3) 録音がないとき：読み上げ or チャイム
+  const txt = (st.slots[i].text || "").trim();
+  if (st.fallback === "speak" && txt && "speechSynthesis" in window) {
+    try {
+      const u = new SpeechSynthesisUtterance(txt); u.lang = "ja-JP"; u.rate = 0.9;
+      if (jaVoice) u.voice = jaVoice;
+      u.onend = u.onerror = endIf(t);
+      setPlaying(vis, 2500 + txt.length * 600);
+      try { speechSynthesis.resume(); } catch(e) {}
+      speechSynthesis.speak(u);
+      return;
+    } catch(e) {}
+  }
+  setPlaying(vis, 1200);
+  setTimeout(endIf(t), chime());
+}
+
+let lastHit = -1e9, seqIndex = 0;
+function trigger(i){
+  const now = performance.now();
+  if (now - lastHit < st.debounce) return;
+  if (st.block && playing) return;
+  lastHit = now;
+  if (st.mode === "seq") {
+    const cur = seqIndex % st.count;
+    flash(0); playSlot(cur, 0);
+    seqIndex = (cur + 1) % st.count;
+    setTimeout(() => { if (!playEl.hidden && st.mode === "seq") renderStage(); }, 260);
+  } else {
+    if (i < 0 || i >= st.count) return;
+    flash(i); playSlot(i);
+  }
+}
+function flash(i){
+  const s = stage.querySelector(`.slot[data-i="${i}"]`); if (!s) return;
+  s.classList.add("hit"); setTimeout(() => s.classList.remove("hit"), 170);
+}
+
+/* ---------- 遊ぶ画面の描画 ---------- */
+const stage = document.getElementById("stage");
+const playEl = document.getElementById("play"), settingsEl = document.getElementById("settings");
+function domeHTML(slot){
+  const col = COLORS[slot.color] || COLORS.red;
+  const ic = iconSVG(slot.icon);
+  const lbl = st.showLabel && slot.text ? `<span class="lbl">${esc(slot.text)}</span>` : "";
+  return `<div class="ring" style="--c:${col.c}"></div><div class="base"><div class="dome${ic?"":" noicon"}" style="--c:${col.c};--dink:${col.ink}">${ic}${lbl}</div></div>`;
+}
+function renderStage(){
+  stage.className = st.mode === "seq" ? "seq" : "n" + st.count;
+  if (st.mode === "seq") {
+    const k0 = seqIndex % st.count, slot = st.slots[k0];
+    const dots = st.count > 1 ? `<div class="seqdots">${Array.from({length:st.count},(_,k)=>`<i class="${k===k0?"on":""}" style="--c:${(COLORS[st.slots[k].color]||COLORS.red).c}"></i>`).join("")}</div>` : "";
+    stage.innerHTML = `<div class="slot" data-i="0" aria-label="${esc(slot.text||"")}">${domeHTML(slot)}${dots}</div>`;
+  } else {
+    stage.innerHTML = st.slots.slice(0, st.count).map((s,i) => `<div class="slot" data-i="${i}" aria-label="${esc(s.text||"")}">${domeHTML(s)}</div>`).join("");
+  }
+  if (curPlay >= 0) { const el = stage.querySelector(`.slot[data-i="${curPlay}"]`); if (el) el.classList.add("playing"); }
+}
+
+/* ---------- タッチ ----------
+   ・画面に何もふれていない状態から、最初にふれた瞬間だけ鳴らす（手のひら・何本もの指でも1回）
+   ・「指を離した」合図が届かなくても固まらないよう、毎回 e.touches で判定する
+   ・音の準備前（最初の1回）は、指を離した瞬間に鳴らす */
+let pendingSlot = -1;
+function slotAt(x, y){ const el = document.elementFromPoint(x, y); const s = el && el.closest && el.closest(".slot"); return s && stage.contains(s) ? +s.dataset.i : -1; }
+stage.addEventListener("touchstart", e => {
+  e.preventDefault();
+  if (e.touches.length !== e.changedTouches.length) return;  // ほかの指・手のひらがすでにふれている
+  const ts = e.changedTouches;
+  let x = 0, y = 0; for (let k=0;k<ts.length;k++) { x += ts[k].clientX; y += ts[k].clientY; }
+  x /= ts.length; y /= ts.length;
+  let i = slotAt(x, y); if (i < 0) i = slotAt(ts[0].clientX, ts[0].clientY);
+  if (i < 0) return;
+  if (!unlocked || (actx && actx.state !== "running")) { pendingSlot = i; return; }
+  trigger(i);
+}, {passive:false});
+stage.addEventListener("touchend", e => {
+  e.preventDefault();
+  if (pendingSlot >= 0) { const i = pendingSlot; pendingSlot = -1; unlockAudio(); trigger(i); }
+}, {passive:false});
+stage.addEventListener("touchcancel", () => { pendingSlot = -1; });
+/* マウスだけ（Apple Pencil はタッチとしても届くので、ここでは扱わない＝二重に鳴らない） */
+stage.addEventListener("pointerdown", e => {
+  if (e.pointerType !== "mouse" || e.button > 0) return;
+  e.preventDefault();
+  unlockAudio();
+  const s = e.target.closest(".slot"); if (!s) return;
+  trigger(+s.dataset.i);
+});
+
+/* つかう画面では、拡大・縮小・スクロール・ドラッグ・長押しメニューを止める */
+const onPlay = () => !playEl.hidden;
+["gesturestart","gesturechange","gestureend"].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), {passive:false}));
+document.addEventListener("touchmove", e => { if (onPlay() || e.touches.length > 1) e.preventDefault(); }, {passive:false});
+document.addEventListener("touchstart", e => { if (e.touches.length > 1 && !onPlay()) e.preventDefault(); }, {passive:false});
+document.addEventListener("dblclick", e => { if (onPlay()) e.preventDefault(); });
+document.addEventListener("wheel", e => { if (e.ctrlKey || onPlay()) e.preventDefault(); }, {passive:false});
+["dragstart","selectstart","contextmenu"].forEach(ev => document.addEventListener(ev, e => { if (onPlay()) e.preventDefault(); }));
+
+/* ---------- キー（スイッチ）入力 ---------- */
+let learning = -1;
+const KEYN = {Space:"スペース"," ":"スペース",Enter:"Enter",NumpadEnter:"Enter（テンキー）",ArrowUp:"↑",ArrowDown:"↓",ArrowLeft:"←",ArrowRight:"→",Tab:"Tab",Backspace:"Backspace",Escape:"Esc"};
+const keyName = c => KEYN[c] || (c.startsWith("Digit") ? c.slice(5) : c.startsWith("Key") ? c.slice(3) : c.startsWith("Numpad") ? "テンキー"+c.slice(6) : c);
+document.addEventListener("keydown", e => {
+  const code = e.code || e.key || "";
+  if (!code) return;
+  if (!settingsEl.hidden) {
+    const log = document.getElementById("keylog"); if (log) log.textContent = "いま押されたキー： " + keyName(code);
+    if (learning >= 0) {
+      e.preventDefault();
+      if (code === "Escape") { learning = -1; renderCards(); return; }
+      st.slots.forEach(s => s.keys = s.keys.filter(k => k !== code)); // ほかのボタンと重ならないように
+      const ks = st.slots[learning].keys;
+      if (!ks.includes(code)) ks.push(code);
+      learning = -1; save(); renderCards();
+    }
+    return;
+  }
+  if (e.repeat) { e.preventDefault(); return; }
+  const idx = st.slots.slice(0, st.count).findIndex(s => s.keys.includes(code));
+  if (idx < 0) return;
+  e.preventDefault();
+  unlockAudio();
+  trigger(st.mode === "seq" ? 0 : idx);
+});
+
+/* ---------- 設定ボタン（長押し） ---------- */
+const gear = document.getElementById("gear"), hint = document.getElementById("hint");
+let holdRaf = 0, holdStart = 0, hintTimer = 0;
+const HOLD = 1500;
+function holdCancel(){ cancelAnimationFrame(holdRaf); holdRaf = 0; gear.style.setProperty("--p", 0); }
+gear.addEventListener("touchstart", e => { e.stopPropagation(); }, {passive:true});
+gear.addEventListener("pointerdown", e => {
+  e.stopPropagation(); e.preventDefault();
+  try { gear.setPointerCapture(e.pointerId); } catch(err) {}
+  if (!st.hold) { openSettings(); return; }
+  holdCancel();
+  holdStart = performance.now();
+  const step = t => {
+    const p = Math.min(1, (t - holdStart) / HOLD);
+    gear.style.setProperty("--p", p);
+    if (p >= 1) { holdCancel(); openSettings(); return; }
+    holdRaf = requestAnimationFrame(step);
+  };
+  holdRaf = requestAnimationFrame(step);
+});
+["pointerup","pointercancel","lostpointercapture"].forEach(ev => gear.addEventListener(ev, () => {
+  if (holdRaf && st.hold) { hint.hidden = false; clearTimeout(hintTimer); hintTimer = setTimeout(() => hint.hidden = true, 1600); }
+  holdCancel();
+}));
+gear.addEventListener("keydown", e => { if (e.key === "Enter" && e.shiftKey) { e.stopPropagation(); openSettings(); } });
+
+/* ---------- 画面の切りかえ ---------- */
+function openSettings(){
+  holdCancel(); stopAll(); stopRec(); pendingSlot = -1;
+  document.body.classList.remove("lock"); playEl.hidden = true; settingsEl.hidden = false;
+  renderSettings(); releaseWake();
+}
+function openPlay(){
+  stopRec(); stopAll(); learning = -1; pendingSlot = -1; histSheet.hidden = true;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  settingsEl.hidden = true; playEl.hidden = false; document.body.classList.add("lock");
+  seqIndex = 0; renderStage(); requestWake(); unlockAudio();
+}
+document.getElementById("doneBtn").onclick = openPlay;
+
+/* 全画面 */
+const fsBtn = document.getElementById("fsBtn");
+const de = document.documentElement;
+const canFS = !!(de.requestFullscreen || de.webkitRequestFullscreen);
+fsBtn.hidden = !canFS;
+fsBtn.onclick = () => {
+  try { const r = de.requestFullscreen ? de.requestFullscreen() : de.webkitRequestFullscreen(); if (r && r.catch) r.catch(() => {}); } catch(e) {}
+  openPlay();
+};
+
+/* 画面が暗くならないように */
+let wake = null, wakeBusy = false;
+async function requestWake(){
+  if (wake || wakeBusy || !("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+  wakeBusy = true;
+  try { wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", () => { wake = null; }); } catch(e) { wake = null; }
+  wakeBusy = false;
+}
+function releaseWake(){ const w = wake; wake = null; try { w && w.release(); } catch(e) {} }
+
+/* ---------- 設定画面 ---------- */
+function setSeg(id, val){ document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === String(val)))); }
+function bindSeg(id, fn){ document.getElementById(id).addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; fn(b.dataset.v); save(); renderSettings(); }); }
+bindSeg("countSeg", v => { st.count = +v; if (learning >= st.count) learning = -1; if (recState && recState.i >= st.count) stopRec(); });
+bindSeg("modeSeg", v => st.mode = v);
+bindSeg("debSeg", v => st.debounce = +v);
+bindSeg("fbSeg", v => st.fallback = v);
+const bindChk = (id, key) => { const el = document.getElementById(id); el.onchange = () => { st[key] = el.checked; save(); }; };
+bindChk("blockChk","block"); bindChk("labelChk","showLabel"); bindChk("holdChk","hold");
+
+const modeNoteEl = document.getElementById("modeNote");
+let noteTimer = 0;
+function modeNoteText(){
+  return st.mode === "seq"
+    ? "画面のどこを押しても（どのスイッチでも）、1つ目→2つ目→3つ目…の順に鳴ります。1つのスイッチで話を進めるときに。"
+    : st.count === 1 ? "画面のどこを押しても鳴ります。スイッチでも鳴ります。"
+    : "画面を" + st.count + "つに分けて、押した場所の音が鳴ります。スイッチもボタンごとに割り当てられます。";
+}
+function renderSettings(){
+  setSeg("countSeg", st.count); setSeg("modeSeg", st.mode); setSeg("debSeg", st.debounce); setSeg("fbSeg", st.fallback);
+  document.getElementById("blockChk").checked = st.block;
+  document.getElementById("labelChk").checked = st.showLabel;
+  document.getElementById("holdChk").checked = st.hold;
+  if (!noteTimer) { modeNoteEl.textContent = modeNoteText(); modeNoteEl.style.color = ""; }
+  renderCards();
+}
+function alertCard(msg){
+  clearTimeout(noteTimer);
+  modeNoteEl.textContent = msg; modeNoteEl.style.color = "var(--danger)";
+  noteTimer = setTimeout(() => { noteTimer = 0; modeNoteEl.style.color = ""; modeNoteEl.textContent = modeNoteText(); }, 6000);
+}
+
+let recState = null, recPending = false;
+const fmt = ms => { const s = Math.max(0, Math.floor(ms/1000)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+function renderCards(){
+  const cards = document.getElementById("cards");
+  // 文字を入力中なら、書きかえたあとも入力を続けられるようにする
+  const ae = document.activeElement, focusId = ae && cards.contains(ae) && ae.id ? ae.id : null;
+  const selS = focusId && ae.selectionStart, selE = focusId && ae.selectionEnd;
+  cards.innerHTML = st.slots.slice(0, st.count).map((s, i) => {
+    const col = COLORS[s.color] || COLORS.red;
+    const isRec = recState && recState.i === i;
+    const busy = (recState && !isRec) || (recPending && !isRec);
+    const sw = Object.entries(COLORS).map(([k,v]) => `<button type="button" class="sw" data-act="color" data-i="${i}" data-v="${k}" style="--c:${v.c}" aria-label="${v.name}" aria-pressed="${s.color===k}"></button>`).join("");
+    const ic = Object.entries(ICONS).map(([k,v]) => `<button type="button" class="ic" data-act="icon" data-i="${i}" data-v="${k}" aria-label="${v.name}" aria-pressed="${s.icon===k}">${k==="none"?'<span class="none">なし</span>':iconSVG(k)}</button>`).join("");
+    const keys = s.keys.map(k => `<span class="chip">${esc(keyName(k))}</span>`).join("") || `<span class="note">なし（画面タップのみ）</span>`;
+    const status = blobs[i] ? "録音した音が鳴ります" : (st.fallback==="speak" ? (s.text.trim() ? "録音なし（ことばを読み上げます）" : "録音なし・ことばなし（チャイムが鳴ります）") : "録音なし（チャイムが鳴ります）");
+    return `<div class="card">
+      <div class="card-h"><div class="mini" style="--c:${col.c};--dink:${col.ink}">${iconSVG(s.icon)}</div><b>${st.mode==="seq"?(i+1)+"ばんめ":(i+1)+"つ目"}のボタン</b></div>
+      <div><label for="tx${i}">ことば</label><input type="text" id="tx${i}" data-act="text" data-i="${i}" value="${esc(s.text)}" placeholder="例：おかわり" maxlength="20" autocomplete="off"></div>
+      <div><label>いろ</label><div class="swatches">${sw}</div></div>
+      <div><label>イラスト</label><div class="icons">${ic}</div></div>
+      <div><label>音</label><div class="status ${blobs[i]?"has":""}">${status}</div></div>
+      ${isRec?`<div class="meter"><i id="meter"></i></div>`:""}
+      <div class="row">
+        <button type="button" class="btn rec ${isRec?"on":""}" data-act="rec" data-i="${i}" ${busy?"disabled":""}>${isRec?"とめる "+fmt(Date.now()-recState.t0):(recPending?"じゅんび中…":"録音する")}</button>
+        <button type="button" class="btn" data-act="play" data-i="${i}" ${isRec?"disabled":""}>きく</button>
+        ${blobs[i]&&!isRec?`<button type="button" class="btn" data-act="del" data-i="${i}">音をけす</button>`:""}
+        <span class="btn file">ファイル<input type="file" accept="audio/*" data-act="file" data-i="${i}" aria-label="音声ファイルを読みこむ" ${recState||recPending?"disabled":""}></span>
+      </div>
+      <div><label>スイッチ</label>
+        <div class="keys" style="margin-top:6px">${keys}</div>
+        <div class="row" style="margin-top:8px">
+          <button type="button" class="${learning===i?"chip learn":"btn"}" data-act="learn" data-i="${i}">${learning===i?"スイッチを押してください…":"スイッチを登録"}</button>
+          ${s.keys.length?`<button type="button" class="btn" data-act="clearkeys" data-i="${i}">登録をけす</button>`:""}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({preventScroll:true}); try { el.setSelectionRange(selS, selE); } catch(e) {} } }
+}
+
+const cardsEl = document.getElementById("cards");
+cardsEl.addEventListener("click", async e => {
+  const b = e.target.closest("[data-act]"); if (!b || b.disabled || b.dataset.act === "text" || b.dataset.act === "file") return;
+  const i = +b.dataset.i, s = st.slots[i]; if (!s) return;
+  unlockAudio();
+  switch (b.dataset.act) {
+    case "color": s.color = b.dataset.v; break;
+    case "icon": s.icon = b.dataset.v; break;
+    case "play": playSlot(i); return;
+    case "del": setAudio(i, null); try { await idb.del("slot"+i); } catch(err) {} break;
+    case "rec": recState ? stopRec() : startRec(i); return;
+    case "learn": learning = learning === i ? -1 : i; break;
+    case "clearkeys": s.keys = []; break;
+  }
+  save(); renderCards();
+});
+cardsEl.addEventListener("input", e => {
+  const t = e.target; if (t.dataset.act !== "text") return;
+  st.slots[+t.dataset.i].text = t.value.slice(0, 20); save();
+});
+cardsEl.addEventListener("change", async e => {
+  const t = e.target; if (t.dataset.act !== "file") return;
+  const f = t.files && t.files[0]; const i = +t.dataset.i;
+  t.value = "";  // 同じファイルを続けて選んでも読みこめるように
+  if (!f) return;
+  if (f.size > 20 * 1024 * 1024) { alertCard("ファイルが大きすぎます（20MBまで）。短い音にしてください。"); return; }
+  setAudio(i, f);
+  try { await idb.set("slot"+i, f); } catch(err) { alertCard("音を保存できませんでした。この画面を閉じると消えます（プライベートブラウズでは保存されません）。"); }
+  renderCards(); unlockAudio(); playSlot(i);
+});
+
+/* ---------- 録音（集音） ---------- */
+const MAX_REC = 30000;
+async function startRec(i){
+  if (recState || recPending) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+    alertCard("このブラウザでは録音できません。Safari / Chrome の最新版で、https のページとして開いてください。録音できない画面では「ファイル」から音声を読みこめます。"); return;
+  }
+  stopAll();
+  recPending = true; renderCards();
+  let stream = null, mr = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+    const type = ["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(e) { return false; } }) || "";
+    mr = new MediaRecorder(stream, type ? {mimeType:type} : undefined);
+  } catch(err) {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    recPending = false; renderCards();
+    alertCard("マイクが使えません。ブラウザの設定でマイクを「許可」にしてください。録音できない画面では「ファイル」から音声を読みこめます。");
+    return;
+  }
+  recPending = false;
+  if (settingsEl.hidden || i >= st.count) { stream.getTracks().forEach(t => t.stop()); renderCards(); return; }
+  const chunks = [];
+  const r = {i, mr, stream, t0: Date.now(), src:null, an:null, buf:null, timer:0, raf:0, keep:true};
+  mr.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+  mr.onerror = () => { r.keep = false; stopRec(); alertCard("録音中にエラーが起きました。もう一度ためしてください。"); };
+  mr.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    try { r.src && r.src.disconnect(); } catch(e) {}
+    const blob = new Blob(chunks, {type: mr.mimeType || chunks[0]?.type || "audio/mp4"});
+    if (r.keep && blob.size > 0 && Date.now() - r.t0 > 300) {
+      setAudio(i, blob);
+      try { await idb.set("slot"+i, blob); } catch(err) { alertCard("録音を保存できませんでした。この画面を閉じると消えます（プライベートブラウズでは保存されません）。"); }
+      if (!settingsEl.hidden) { renderCards(); playSlot(i); }
+    } else if (!settingsEl.hidden) renderCards();
+  };
+  // 音の大きさメーター
+  try {
+    const c = getCtx(); if (c.state !== "running") c.resume();
+    r.src = c.createMediaStreamSource(stream); r.an = c.createAnalyser(); r.an.fftSize = 512; r.src.connect(r.an); r.buf = new Uint8Array(r.an.fftSize);
+  } catch(err) { r.an = null; }
+  try { mr.start(250); } catch(err) { stream.getTracks().forEach(t => t.stop()); renderCards(); alertCard("録音を始められませんでした。もう一度ためしてください。"); return; }
+  recState = r;
+  renderCards();
+  r.timer = setInterval(() => {
+    if (recState !== r) return;
+    const el = cardsEl.querySelector(`[data-act="rec"][data-i="${i}"]`);
+    if (el) el.textContent = "とめる " + fmt(Date.now() - r.t0);
+    if (Date.now() - r.t0 >= MAX_REC) stopRec();
+  }, 250);
+  const loop = () => {
+    if (recState !== r) return;
+    if (r.an) { r.an.getByteTimeDomainData(r.buf); let m = 0; for (let k=0;k<r.buf.length;k++) m = Math.max(m, Math.abs(r.buf[k]-128)); const el = document.getElementById("meter"); if (el) el.style.width = Math.min(100, m/128*160) + "%"; }
+    r.raf = requestAnimationFrame(loop);
+  };
+  loop();
+}
+/* keep=false … 設定を閉じたときなど、録音をすてる */
+function stopRec(keep){
+  if (!recState) return;
+  const r = recState; recState = null;
+  if (keep === false) r.keep = false;
+  clearInterval(r.timer); cancelAnimationFrame(r.raf);
+  try { if (r.mr.state !== "inactive") r.mr.stop(); else r.stream.getTracks().forEach(t => t.stop()); } catch(e) { try { r.stream.getTracks().forEach(t => t.stop()); } catch(e2) {} }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") stopRec(); });
+
+/* ---------- 更新履歴 ---------- */
+const HISTORY = [
+  {v:"v1.2", d:"2026-11-06", items:[
+    "ダークモードをなくし、つかう画面も明るい画面だけで表示するように変更",
+    "設定画面のタイトルの左にアイコンを追加",
+    "アイコンを長押しすると更新履歴が出るように変更（設定画面の下にあった更新履歴は、ここへ移動）"]},
+  {v:"v1.11", d:"2026-10-31", items:[
+    "最初のタッチで音が鳴らないことがある問題を修正（最初の1回は、指を離したときに音の準備をして鳴らす）",
+    "録音した音を、遅れが少なく止まりにくい方法（Web Audio）で鳴らすように修正",
+    "「指を離した」合図が届かないと、タッチに反応しなくなることがある問題を修正",
+    "Apple Pencil で2回鳴ることがある問題を修正",
+    "音が続けて鳴ったとき、「鳴っている」表示や「鳴っている間は反応しない」がずれる問題を修正",
+    "録音ボタンを続けて押すと録音が二重に始まる問題、マイクが使えないときに止まらない問題を修正",
+    "アプリを裏に回したとき・ほかのアプリから戻ったときに音が出なくなる問題を修正",
+    "保存した設定がこわれていても起動できるように修正",
+    "同じ音声ファイルを続けて読みこめない問題、文字の入力中に入力が切れる問題を修正"]},
+  {v:"v1.1", d:"2026-10-31", items:[
+    "設定に「更新履歴」を追加",
+    "手のひら全体や、指が何本ふれても、1回だけ鳴るように変更",
+    "つかう画面で、拡大・縮小、スクロール、長押しメニュー、ドラッグを止めるように変更"]},
+  {v:"v1.01", d:"2026-10-31", items:["録音できないときに「ファイルから読みこめます」と案内するよう修正"]},
+  {v:"v1.0", d:"2026-10-31", items:[
+    "最初の版",
+    "画面全体タップ・外部スイッチで鳴る（1〜3パターン、じゅんばんにモード）",
+    "ボタンごとの録音（集音）、音声ファイルの読みこみ、ことばの読み上げ",
+    "連打防止、鳴っている間は反応しない設定、長押しで開く設定ボタン"]}
+];
+document.getElementById("hist").innerHTML = HISTORY.map((h,k) =>
+  `<details${k===0?" open":""}><summary><span class="v">${h.v}</span><span class="d">${h.d}</span></summary><ul>${h.items.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></details>`).join("");
+
+/* タイトル左のアイコンを長押し → 更新履歴 */
+const appIcon = document.getElementById("appIcon"), histSheet = document.getElementById("histSheet");
+let iconRaf = 0, iconT0 = 0;
+const ICON_HOLD = 700;
+function iconCancel(){ cancelAnimationFrame(iconRaf); iconRaf = 0; appIcon.style.setProperty("--p", 0); }
+function openHist(){ iconCancel(); histSheet.hidden = false; document.getElementById("histClose").focus({preventScroll:true}); }
+function closeHist(){ histSheet.hidden = true; appIcon.focus({preventScroll:true}); }
+appIcon.addEventListener("pointerdown", e => {
+  if (e.button > 0) return;
+  e.preventDefault();
+  try { appIcon.setPointerCapture(e.pointerId); } catch(err) {}
+  iconCancel(); iconT0 = performance.now();
+  const step = t => {
+    const p = Math.min(1, (t - iconT0) / ICON_HOLD);
+    appIcon.style.setProperty("--p", p);
+    if (p >= 1) { openHist(); return; }
+    iconRaf = requestAnimationFrame(step);
+  };
+  iconRaf = requestAnimationFrame(step);
+});
+["pointerup","pointercancel","lostpointercapture"].forEach(ev => appIcon.addEventListener(ev, iconCancel));
+appIcon.addEventListener("contextmenu", e => e.preventDefault());
+appIcon.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openHist(); } });
+document.getElementById("histClose").onclick = closeHist;
+histSheet.addEventListener("click", e => { if (e.target === histSheet) closeHist(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !histSheet.hidden) closeHist(); }, true);
+
+/* ---------- コピーライト・バージョン ---------- */
+const y = new Date().getFullYear();
+document.querySelectorAll(".copy").forEach(f => f.textContent = `© ${y > 2026 ? "2026–" + y : "2026"} eduwithdai. All rights reserved.`);
+document.getElementById("ver").textContent = VERSION;
+
+/* ---------- はじまり ---------- */
+document.body.classList.add("lock");
+renderStage();
+loadAll();
+/* どこかを最初に操作したときに音の準備をする（設定画面のボタンなども含む） */
+["touchend","click","keydown"].forEach(ev => document.addEventListener(ev, () => { if (!unlocked) unlockAudio(); requestWake(); }, {capture:true, passive:true}));
+})();
+</script>
+</body>
+</html>
