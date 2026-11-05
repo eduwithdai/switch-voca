@@ -144,6 +144,11 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 .toggle input{width:24px;height:24px;accent-color:var(--accent)}
 .keylog{font-variant-numeric:tabular-nums;font-size:14px;color:var(--ink-2)}
 .file{position:relative;overflow:hidden}
+.trim{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:12px;background:#f7f5f0;border:1px solid var(--line)}
+.wave{display:block;width:100%;height:84px;border-radius:8px;background:#fff;touch-action:none;cursor:ew-resize}
+.trim-info{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums;line-height:1.5}
+.toggle.sm{font-size:15px;padding:2px 0}
+.btn.sm{min-height:42px;padding:8px 12px;font-size:14px}
 .micmsg{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fdecea;color:#9b2c22;font-size:14px;line-height:1.7;font-weight:700;overflow-wrap:anywhere}
 .file input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .howto{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;font-size:14px;line-height:1.8}
@@ -266,7 +271,7 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.3";
+const VERSION = "v1.4";
 
 /* ---------- イラスト（SVG） ---------- */
 const S = 'stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"';
@@ -378,9 +383,17 @@ function setAudio(i, blob){
 }
 async function loadAll(){
   for (let i=0;i<3;i++){
-    const g = gen[i];
+    const g = gen[i], eg = editGen[i];
     try { const b = await idb.get("slot"+i); if (b instanceof Blob && gen[i] === g && !blobs[i]) setAudio(i, b); } catch(e) {}
+    try {
+      const o = await idb.get("orig"+i), ed = await idb.get("edit"+i);
+      if (o instanceof Blob && editGen[i] === eg && !origBlobs[i]) {
+        origBlobs[i] = o;
+        if (ed && typeof ed.start === "number" && typeof ed.end === "number" && ed.end > ed.start) edits[i] = {start:ed.start, end:ed.end, clean:ed.clean !== false};
+      }
+    } catch(e) {}
   }
+  if (!settingsEl.hidden) renderCards();
 }
 function pickVoice(){
   try { const vs = speechSynthesis.getVoices(); jaVoice = vs.find(v => /^ja/i.test(v.lang)) || null; } catch(e) {}
@@ -698,6 +711,16 @@ function renderCards(){
       <div><label>イラスト</label><div class="icons">${ic}</div></div>
       <div><label>音</label><div class="status ${blobs[i]?"has":""}">${status}</div></div>
       ${isRec?`<div class="meter"><i id="meter"></i></div>`:""}
+      ${origBlobs[i]&&!isRec?`<div class="trim">
+        <canvas class="wave" data-i="${i}" role="img" aria-label="録音の波形。左右のつまみを動かして、使う部分をえらびます"></canvas>
+        <div class="trim-info" id="ti${i}"></div>
+        <p class="note" style="margin:0">左右の黒いつまみを指で動かすと、使う部分を変えられます。青いところが鳴ります。</p>
+        <label class="toggle sm"><input type="checkbox" data-act="clean" data-i="${i}" ${!edits[i]||edits[i].clean?"checked":""} ${editBusy[i]?"disabled":""}>まわりの雑音をへらす</label>
+        <div class="row">
+          <button type="button" class="btn sm" data-act="autotrim" data-i="${i}" ${editBusy[i]?"disabled":""}>声の部分を自動で切りとる</button>
+          <button type="button" class="btn sm" data-act="fulltrim" data-i="${i}" ${editBusy[i]?"disabled":""}>切りとらない</button>
+        </div>
+      </div>`:""}
       <div class="row">
         <button type="button" class="btn rec ${isRec?"on":""}" data-act="rec" data-i="${i}" ${busy?"disabled":""}>${isRec?"とめる "+fmt(Date.now()-recState.t0):(recPending?"じゅんび中…":"録音する")}</button>
         <button type="button" class="btn" data-act="play" data-i="${i}" ${isRec?"disabled":""}>きく</button>
@@ -714,6 +737,7 @@ function renderCards(){
     </div>`;
   }).join("");
   if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({preventScroll:true}); try { el.setSelectionRange(selS, selE); } catch(e) {} } }
+  drawAllWaves();
 }
 
 const cardsEl = document.getElementById("cards");
@@ -725,7 +749,9 @@ cardsEl.addEventListener("click", async e => {
     case "color": s.color = b.dataset.v; break;
     case "icon": s.icon = b.dataset.v; break;
     case "play": playSlot(i); return;
-    case "del": setAudio(i, null); try { await idb.del("slot"+i); } catch(err) {} break;
+    case "del": await clearAudio(i); break;
+    case "autotrim": if (origBufs[i] && edits[i]) { const t = autoTrim(origBufs[i]); edits[i].start = t.start; edits[i].end = t.end; applyEdit(i, true); } return;
+    case "fulltrim": if (origBufs[i] && edits[i]) { edits[i].start = 0; edits[i].end = origBufs[i].duration; applyEdit(i, true); } return;
     case "rec": recState ? stopRec() : startRec(i); return;
     case "learn": learning = learning === i ? -1 : i; break;
     case "clearkeys": s.keys = []; break;
@@ -737,15 +763,232 @@ cardsEl.addEventListener("input", e => {
   st.slots[+t.dataset.i].text = t.value.slice(0, 20); save();
 });
 cardsEl.addEventListener("change", async e => {
-  const t = e.target; if (t.dataset.act !== "file") return;
+  const t = e.target;
+  if (t.dataset.act === "clean") { const i = +t.dataset.i; if (edits[i]) { edits[i].clean = t.checked; applyEdit(i, true); } return; }
+  if (t.dataset.act !== "file") return;
   const f = t.files && t.files[0]; const i = +t.dataset.i;
   t.value = "";  // 同じファイルを続けて選んでも読みこめるように
   if (!f) return;
   if (f.size > 20 * 1024 * 1024) { alertCard("ファイルが大きすぎます（20MBまで）。短い音にしてください。"); return; }
-  setAudio(i, f);
-  try { await idb.set("slot"+i, f); } catch(err) { alertCard("音を保存できませんでした。この画面を閉じると消えます（プライベートブラウズでは保存されません）。"); }
-  renderCards(); unlockAudio(); playSlot(i);
+  unlockAudio();
+  await importAudio(i, f);
 });
+
+/* ---------- 声の部分だけ切りとる・雑音をへらす ----------
+   元の録音（orig）はそのまま残し、切りとり範囲と「雑音をへらす」の設定（edit）から、鳴らす音（WAV）をつくりなおす */
+const origBlobs = [null,null,null], origBufs = [null,null,null], edits = [null,null,null];
+const editGen = [0,0,0], editBusy = [false,false,false];
+const monoMap = new WeakMap(), cleanMap = new WeakMap();
+
+function getMono(buf){
+  let m = monoMap.get(buf); if (m) return m;
+  const n = buf.length, ch = buf.numberOfChannels; m = new Float32Array(n);
+  for (let c=0;c<ch;c++){ const d = buf.getChannelData(c); for (let k=0;k<n;k++) m[k] += d[k] / ch; }
+  monoMap.set(buf, m); return m;
+}
+/* FFT（2のべき乗） */
+function makeFFT(N){
+  const rev = new Uint32Array(N), bits = Math.log2(N);
+  for (let k=0;k<N;k++){ let r=0,x=k; for (let b=0;b<bits;b++){ r=(r<<1)|(x&1); x>>=1; } rev[k]=r; }
+  const cos = new Float32Array(N/2), sin = new Float32Array(N/2);
+  for (let k=0;k<N/2;k++){ cos[k]=Math.cos(2*Math.PI*k/N); sin[k]=-Math.sin(2*Math.PI*k/N); }
+  return (re, im, inv) => {
+    for (let k=0;k<N;k++){ const r=rev[k]; if (r>k){ let t=re[k]; re[k]=re[r]; re[r]=t; t=im[k]; im[k]=im[r]; im[r]=t; } }
+    for (let size=2; size<=N; size<<=1){
+      const half=size>>1, step=N/size;
+      for (let s=0;s<N;s+=size) for (let j=0;j<half;j++){
+        const wr=cos[j*step], wi=inv?-sin[j*step]:sin[j*step];
+        const a=s+j, b=a+half, tr=re[b]*wr-im[b]*wi, ti=re[b]*wi+im[b]*wr;
+        re[b]=re[a]-tr; im[b]=im[a]-ti; re[a]+=tr; im[a]+=ti;
+      }
+    }
+    if (inv) for (let k=0;k<N;k++){ re[k]/=N; im[k]/=N; }
+  };
+}
+/* スペクトル減算：いちばん静かな部分を「雑音」として覚え、その成分を全体からへらす */
+function denoise(x, sr){
+  const N = sr > 32000 ? 1024 : 512, H = N/2, B = N/2+1;
+  const win = new Float32Array(N); for (let k=0;k<N;k++) win[k] = Math.sqrt(0.5 - 0.5*Math.cos(2*Math.PI*k/N));
+  const len = x.length, pad = new Float32Array(len + 2*N); pad.set(x, N);
+  const F = Math.floor((pad.length - N) / H) + 1;
+  const fft = makeFFT(N), re = new Float32Array(N), im = new Float32Array(N);
+  // 1) 各フレームの大きさ → 静かなフレームを選ぶ
+  const en = new Float32Array(F);
+  for (let f=0;f<F;f++){ let s=0; const o=f*H; for (let k=0;k<N;k++){ const v=pad[o+k]; s+=v*v; } en[f]=s/N; }
+  const sorted = Array.from(en).sort((a,b)=>a-b);
+  const q = sorted[Math.floor(F*0.15)], loud = sorted[Math.floor(F*0.95)] || 1e-12;
+  const quiet = []; for (let f=0;f<F;f++) if (en[f] <= q) quiet.push(f);
+  // 静かな部分がほとんどない録音では、声をこわさないよう弱めにかける
+  const ratio = q / (loud + 1e-12);   // 静かな部分と大きな部分の差（小さいほど、静かな部分がはっきりある）
+  const alpha = ratio < 0.01 ? 2.5 : ratio < 0.05 ? 1.6 : 0.8, floor = ratio < 0.01 ? 0.04 : ratio < 0.05 ? 0.1 : 0.25;
+  // 2) 雑音の成分（平均）
+  const noise = new Float32Array(B);
+  for (const f of quiet){ const o=f*H; for (let k=0;k<N;k++){ re[k]=pad[o+k]*win[k]; im[k]=0; } fft(re,im,false); for (let k=0;k<B;k++) noise[k]+=Math.hypot(re[k],im[k]); }
+  for (let k=0;k<B;k++) noise[k] /= Math.max(1, quiet.length);
+  const hp = Math.ceil(80 * N / sr);  // 80Hzより低いブーン音は消す
+  // 3) へらして、もどす
+  const out = new Float32Array(pad.length), prev = new Float32Array(B).fill(1);
+  for (let f=0;f<F;f++){
+    const o=f*H; for (let k=0;k<N;k++){ re[k]=pad[o+k]*win[k]; im[k]=0; }
+    fft(re,im,false);
+    for (let k=0;k<B;k++){
+      const mag = Math.hypot(re[k],im[k]) + 1e-12;
+      let g = k < hp ? 0 : Math.max(floor, 1 - alpha*noise[k]/mag);
+      g = 0.65*g + 0.35*prev[k]; prev[k] = g;
+      re[k]*=g; im[k]*=g;
+      if (k>0 && k<N/2){ re[N-k]=re[k]; im[N-k]=-im[k]; }
+    }
+    fft(re,im,true);
+    for (let k=0;k<N;k++) out[o+k] += re[k]*win[k];
+  }
+  return out.subarray(N, N+len);
+}
+function getClean(buf){
+  let c = cleanMap.get(buf); if (c) return c;
+  c = denoise(getMono(buf), buf.sampleRate); cleanMap.set(buf, c); return c;
+}
+/* 声のある範囲をさがす（前に0.12秒、後ろに0.25秒のゆとり） */
+function autoTrim(buf){
+  const x = getClean(buf), sr = buf.sampleRate, dur = buf.duration;
+  const fl = Math.max(1, Math.round(sr*0.02)), F = Math.floor(x.length/fl);
+  if (F < 5) return {start:0, end:dur};
+  const db = new Float32Array(F);
+  for (let f=0;f<F;f++){ let s=0; for (let k=f*fl;k<(f+1)*fl;k++) s+=x[k]*x[k]; db[f]=10*Math.log10(s/fl+1e-12); }
+  const sorted = Array.from(db).sort((a,b)=>a-b), lo = sorted[Math.floor(F*0.1)], hi = sorted[F-1];
+  if (hi - lo < 8) return {start:0, end:dur};
+  const thr = lo + Math.max(8, (hi-lo)*0.3);
+  const on = f => db[f] > thr && (db[f+1] > thr || db[f-1] > thr);
+  let a = -1, b = -1;
+  for (let f=0;f<F;f++) if (on(f)) { a=f; break; }
+  for (let f=F-1;f>=0;f--) if (on(f)) { b=f; break; }
+  if (a < 0) return {start:0, end:dur};
+  const start = Math.max(0, a*fl/sr - 0.12), end = Math.min(dur, (b+1)*fl/sr + 0.25);
+  return end - start < 0.15 ? {start:0, end:dur} : {start, end};
+}
+/* 鳴らす音をつくる：切りとり → ふち処理 → 音量をそろえる → WAV */
+function renderWav(buf, e){
+  const sr = buf.sampleRate, src = e.clean ? getClean(buf) : getMono(buf);
+  const s0 = Math.max(0, Math.floor(e.start*sr)), s1 = Math.min(src.length, Math.ceil(e.end*sr));
+  const n = Math.max(1, s1 - s0), y = new Float32Array(n);
+  for (let k=0;k<n;k++) y[k] = src[s0+k];
+  const fade = Math.min(Math.floor(sr*0.015), Math.floor(n/4));
+  for (let k=0;k<fade;k++){ const g=k/fade; y[k]*=g; y[n-1-k]*=g; }
+  let peak = 0; for (let k=0;k<n;k++) peak = Math.max(peak, Math.abs(y[k]));
+  const gain = peak > 1e-4 ? Math.min(0.9/peak, e.clean ? 6 : 3) : 1;
+  const dv = new DataView(new ArrayBuffer(44 + n*2));
+  const w = (o,str) => { for (let k=0;k<str.length;k++) dv.setUint8(o+k, str.charCodeAt(k)); };
+  w(0,"RIFF"); dv.setUint32(4,36+n*2,true); w(8,"WAVE"); w(12,"fmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+  dv.setUint32(24,sr,true); dv.setUint32(28,sr*2,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true); w(36,"data"); dv.setUint32(40,n*2,true);
+  for (let k=0;k<n;k++){ const v = Math.max(-1, Math.min(1, y[k]*gain)); dv.setInt16(44+k*2, v<0 ? v*0x8000 : v*0x7fff, true); }
+  return new Blob([dv], {type:"audio/wav"});
+}
+function decodeTo(blob){
+  const c = getCtx(); if (!c) return Promise.reject(new Error("noctx"));
+  return blob.arrayBuffer().then(ab => new Promise((res, rej) => { const r = c.decodeAudioData(ab, res, rej); if (r && r.then) r.then(res, rej); }));
+}
+const SAVE_FAIL = "音を保存できませんでした。この画面を閉じると消えます（プライベートブラウズでは保存されません）。";
+/* 録音・ファイルを取りこむ */
+async function importAudio(i, blob){
+  editGen[i]++;
+  let buf = null;
+  try { buf = await decodeTo(blob); } catch(e) {}
+  if (!buf || buf.duration < 0.05) {          // 読みとれない形式 → そのまま使う
+    origBlobs[i] = null; origBufs[i] = null; edits[i] = null;
+    setAudio(i, blob);
+    try { await idb.set("slot"+i, blob); await idb.del("orig"+i); await idb.del("edit"+i); } catch(e) { alertCard(SAVE_FAIL); }
+    if (!settingsEl.hidden) { renderCards(); playSlot(i); }
+    return;
+  }
+  origBlobs[i] = blob; origBufs[i] = buf;
+  try { await idb.set("orig"+i, blob); } catch(e) {}
+  editBusy[i] = true; if (!settingsEl.hidden) renderCards();
+  await new Promise(r => setTimeout(r, 30));
+  const t = autoTrim(buf);
+  edits[i] = {start:t.start, end:t.end, clean:true};
+  await applyEdit(i, true);
+}
+async function applyEdit(i, play){
+  const buf = origBufs[i], e = edits[i]; if (!buf || !e) return;
+  const g = ++editGen[i]; editBusy[i] = true; updateTrimInfo(i);
+  await new Promise(r => setTimeout(r, 30));
+  if (g !== editGen[i]) return;
+  let wav; try { wav = renderWav(buf, e); } catch(err) { editBusy[i] = false; updateTrimInfo(i); return; }
+  editBusy[i] = false;
+  setAudio(i, wav);
+  try { await idb.set("slot"+i, wav); await idb.set("edit"+i, {start:e.start, end:e.end, clean:e.clean}); } catch(err) { alertCard(SAVE_FAIL); }
+  if (g !== editGen[i]) return;
+  if (!settingsEl.hidden) { renderCards(); if (play) playSlot(i); }
+}
+async function ensureDecoded(i){
+  if (origBufs[i] || !origBlobs[i]) return;
+  const g = editGen[i];
+  try { const b = await decodeTo(origBlobs[i]); if (g === editGen[i] && origBlobs[i]) { origBufs[i] = b; if (!edits[i]) edits[i] = {start:0, end:b.duration, clean:false}; drawWave(i); updateTrimInfo(i); } } catch(e) {}
+}
+async function clearAudio(i){
+  editGen[i]++; origBlobs[i] = null; origBufs[i] = null; edits[i] = null; editBusy[i] = false;
+  setAudio(i, null);
+  try { await idb.del("slot"+i); await idb.del("orig"+i); await idb.del("edit"+i); } catch(e) {}
+}
+
+/* 波形とつまみ */
+const f1 = v => (Math.round(v*10)/10).toFixed(1);
+function updateTrimInfo(i){
+  const el = document.getElementById("ti"+i); if (!el) return;
+  const e = edits[i], b = origBufs[i];
+  if (editBusy[i]) { el.textContent = "音をととのえています…"; return; }
+  if (!e || !b) { el.textContent = "波形を読みこんでいます…"; return; }
+  el.textContent = `${f1(e.start)}秒〜${f1(e.end)}秒（${f1(e.end-e.start)}秒）を使います　／　録音ぜんぶ ${f1(b.duration)}秒`;
+}
+function drawWave(i){
+  const cv = cardsEl.querySelector(`canvas.wave[data-i="${i}"]`), buf = origBufs[i], e = edits[i];
+  if (!cv) return;
+  const dpr = window.devicePixelRatio || 1, W = Math.max(1, cv.clientWidth), Hh = Math.max(1, cv.clientHeight);
+  cv.width = Math.round(W*dpr); cv.height = Math.round(Hh*dpr);
+  const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,Hh);
+  if (!buf || !e) return;
+  const x = e.clean ? getClean(buf) : getMono(buf), n = x.length, dur = buf.duration, mid = Hh/2;
+  let peak = 1e-4; for (let k=0;k<n;k+=8) peak = Math.max(peak, Math.abs(x[k]));
+  const xs = e.start/dur*W, xe = e.end/dur*W;
+  g.fillStyle = "rgba(47,111,222,.10)"; g.fillRect(xs, 0, xe-xs, Hh);
+  for (let px=0; px<W; px++){
+    const a = Math.floor(px/W*n), bnd = Math.min(n, Math.floor((px+1)/W*n)); let m = 0;
+    for (let k=a;k<bnd;k++){ const v=Math.abs(x[k]); if (v>m) m=v; }
+    const h = Math.max(1, m/peak*(mid-6));
+    g.fillStyle = px>=xs && px<=xe ? "#2f6fde" : "#c4c0b6";
+    g.fillRect(px, mid-h, 1, h*2);
+  }
+  [xs, xe].forEach(hx => {
+    g.fillStyle = "#1f2633"; g.fillRect(hx-1.5, 0, 3, Hh);
+    g.beginPath(); g.arc(hx, Hh-11, 9, 0, Math.PI*2); g.fill();
+    g.fillStyle = "#fff"; g.fillRect(hx-3, Hh-15, 1.5, 8); g.fillRect(hx+1.5, Hh-15, 1.5, 8);
+  });
+}
+function drawAllWaves(){ for (let i=0;i<st.count;i++) if (origBlobs[i]) { if (origBufs[i]) drawWave(i); else ensureDecoded(i); updateTrimInfo(i); } }
+let drag = null;
+cardsEl.addEventListener("pointerdown", e => {
+  const cv = e.target.closest && e.target.closest("canvas.wave"); if (!cv) return;
+  const i = +cv.dataset.i, ed = edits[i], buf = origBufs[i]; if (!ed || !buf || editBusy[i]) return;
+  e.preventDefault();
+  const r = cv.getBoundingClientRect(), t = (e.clientX - r.left) / r.width * buf.duration;
+  const which = Math.abs(t - ed.start) <= Math.abs(t - ed.end) ? "start" : "end";
+  drag = {i, cv, which, id:e.pointerId};
+  try { cv.setPointerCapture(e.pointerId); } catch(err) {}
+  moveDrag(e);
+});
+function moveDrag(e){
+  if (!drag || e.pointerId !== drag.id) return;
+  const {i, cv, which} = drag, ed = edits[i], dur = origBufs[i].duration;
+  const r = cv.getBoundingClientRect();
+  let t = Math.max(0, Math.min(dur, (e.clientX - r.left) / r.width * dur));
+  if (which === "start") ed.start = Math.min(t, ed.end - 0.1); else ed.end = Math.max(t, ed.start + 0.1);
+  ed.start = Math.max(0, ed.start); ed.end = Math.min(dur, ed.end);
+  drawWave(i); updateTrimInfo(i);
+}
+cardsEl.addEventListener("pointermove", moveDrag);
+const endDrag = e => { if (!drag || e.pointerId !== drag.id) return; const i = drag.i; drag = null; applyEdit(i, true); };
+cardsEl.addEventListener("pointerup", endDrag);
+cardsEl.addEventListener("pointercancel", endDrag);
+window.addEventListener("resize", () => { if (!settingsEl.hidden) for (let i=0;i<st.count;i++) drawWave(i); });
 
 /* ---------- マイク ----------
    iPadのSafariは、音の使い方を「再生だけ（playback）」にしているとマイクが使えない。
@@ -787,7 +1030,7 @@ function showMic(kind, err){
 }
 async function getMic(){
   setSession("play-and-record");
-  try { return await navigator.mediaDevices.getUserMedia({audio:true}); }
+  try { return await navigator.mediaDevices.getUserMedia({audio:{noiseSuppression:{ideal:true}, echoCancellation:{ideal:true}, autoGainControl:{ideal:true}}}); }
   catch(e) { if (!recState) setSession("playback"); throw e; }
 }
 async function refreshMicState(){
@@ -847,9 +1090,7 @@ async function startRec(i){
     try { r.src && r.src.disconnect(); } catch(e) {}
     const blob = new Blob(chunks, {type: mr.mimeType || chunks[0]?.type || "audio/mp4"});
     if (r.keep && blob.size > 0 && Date.now() - r.t0 > 300) {
-      setAudio(i, blob);
-      try { await idb.set("slot"+i, blob); } catch(err) { alertCard("録音を保存できませんでした。この画面を閉じると消えます（プライベートブラウズでは保存されません）。"); }
-      if (!settingsEl.hidden) { renderCards(); playSlot(i); }
+      await importAudio(i, blob);
     } else if (!settingsEl.hidden) renderCards();
   };
   // 音の大きさメーター
@@ -885,6 +1126,12 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 /* ---------- 更新履歴 ---------- */
 const HISTORY = [
+  {v:"v1.4", d:"2026-11-06", items:[
+    "録音のあと、前後の無音を自動で切りとって、声の部分だけを使うように変更",
+    "まわりの雑音（エアコンや話し声などのザー・ブーンという音）をへらす機能を追加",
+    "波形を見ながら、左右のつまみで使う部分を調整できるように変更",
+    "音量を自動でそろえるように変更（小さく録れた声も聞きやすく）",
+    "読みこんだ音声ファイルにも、同じ切りとり・雑音をへらす処理ができるように変更"]},
   {v:"v1.3", d:"2026-11-06", items:[
     "つかう画面の背景を黒にして、ボタンが光って目立つように変更",
     "「音が鳴っているあいだは、次の入力に反応しない」をはじめからオンに変更",
