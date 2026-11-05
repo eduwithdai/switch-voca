@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="color-scheme" content="light only">
-<meta name="theme-color" content="#eef1f6">
+<meta name="theme-color" content="#000000">
 <title>スイッチVOCA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <style>
-/* 明るい画面だけ（ダークモードなし）。つかう画面は大きなドーム型スイッチ、設定画面は紙面 */
+/* つかう画面は黒い背景に光るドーム型スイッチ（端末のダーク設定には左右されない固定の配色）。設定画面は明るい紙面 */
 :root{
-  --stage:#eef1f6; --stage-2:#e4e8f0; --base:#c9cfda; --base-hi:#dfe3ea; --base-lo:#b3bac8; --base-edge:#a9b1bf; --divider:#cfd5df;
+  --stage:#000000; --stage-2:#000000; --base:#1b1d23; --base-hi:#2b2e36; --base-lo:#101115; --base-edge:#050506; --divider:#1f2026;
   --paper:#f6f4ef; --card:#ffffff; --ink:#1f2633; --ink-2:#5b6474; --line:#dcd8cf;
   --accent:#2f6fde; --danger:#d9483b; --ok:#2e9e5b;
   --red:#e5483b; --yellow:#f2b705; --blue:#2f6fde; --green:#2e9e5b;
@@ -47,39 +47,39 @@ body.lock{overflow:hidden;position:fixed;inset:0;touch-action:none}
 .slot:nth-child(2){background:var(--stage-2)}
 .base{width:min(82cqw,82cqh);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
   background:radial-gradient(circle at 50% 40%,var(--base-hi),var(--base) 60%,var(--base-lo));
-  box-shadow:0 2.5cqmin 0 var(--base-edge),0 4cqmin 5cqmin rgba(40,50,70,.18)}
+  box-shadow:0 2.5cqmin 0 var(--base-edge),inset 0 .5cqmin 0 rgba(255,255,255,.06)}
 .dome{width:84%;aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqmin;
   color:var(--dink,#fff);
   background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.55),rgba(255,255,255,0) 32%),
     radial-gradient(circle at 50% 60%,var(--c),color-mix(in srgb,var(--c) 70%,#000) 100%);
-  box-shadow:inset 0 -2cqmin 0 rgba(0,0,0,.18),0 1.6cqmin 0 color-mix(in srgb,var(--c) 55%,#000);
+  box-shadow:inset 0 -2cqmin 0 rgba(0,0,0,.18),0 1.6cqmin 0 color-mix(in srgb,var(--c) 55%,#000),0 0 9cqmin color-mix(in srgb,var(--c) 45%,transparent);
   transition:transform .08s ease-out,box-shadow .08s ease-out}
 .dome svg{width:42%;height:auto;overflow:visible}
 .dome .lbl{font-weight:900;font-size:min(11cqw,11cqh);line-height:1.1;text-align:center;padding:0 10%;
   word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 .4cqmin 0 rgba(0,0,0,.12)}
 .dome.noicon .lbl{font-size:min(15cqw,15cqh)}
-.slot.hit .dome{transform:translateY(1.4cqmin) scale(.96);box-shadow:inset 0 -1cqmin 0 rgba(0,0,0,.18),0 .3cqmin 0 color-mix(in srgb,var(--c) 55%,#000)}
+.slot.hit .dome{transform:translateY(1.4cqmin) scale(.96);box-shadow:inset 0 -1cqmin 0 rgba(0,0,0,.18),0 .3cqmin 0 color-mix(in srgb,var(--c) 55%,#000),0 0 14cqmin color-mix(in srgb,var(--c) 70%,transparent)}
 .slot .ring{position:absolute;width:min(82cqw,82cqh);aspect-ratio:1;border-radius:50%;border:1.4cqmin solid var(--c);opacity:0;pointer-events:none}
 .slot.playing .ring{animation:ring 1.1s ease-out infinite}
 @keyframes ring{0%{transform:scale(.95);opacity:.75}100%{transform:scale(1.18);opacity:0}}
 .seqdots{position:absolute;bottom:3cqh;left:0;right:0;display:flex;justify-content:center;gap:2.4cqmin;pointer-events:none}
-.seqdots i{width:3cqmin;height:3cqmin;border-radius:50%;background:#c3c9d4}
-.seqdots i.on{background:var(--c);box-shadow:0 0 0 .6cqmin rgba(0,0,0,.08)}
+.seqdots i{width:3cqmin;height:3cqmin;border-radius:50%;background:#34363e}
+.seqdots i.on{background:var(--c);box-shadow:0 0 2cqmin var(--c)}
 
 #gear{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));
-  width:52px;height:52px;border-radius:50%;border:0;background:rgba(31,38,51,.06);color:#7a8396;display:grid;place-items:center;
+  width:52px;height:52px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:#7d828e;display:grid;place-items:center;
   touch-action:none;z-index:5;--p:0}
 #gear svg{width:26px;height:26px}
 #gear::after{content:"";position:absolute;inset:-3px;border-radius:50%;
-  background:conic-gradient(var(--ink) calc(var(--p)*1turn),transparent 0);
+  background:conic-gradient(#fff calc(var(--p)*1turn),transparent 0);
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 0)}
 #gear:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #hint{position:absolute;top:calc(68px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));
-  background:var(--ink);color:#fff;font-size:13px;padding:6px 10px;border-radius:8px;z-index:5;pointer-events:none}
+  background:#2b2e36;color:#fff;font-size:13px;padding:6px 10px;border-radius:8px;z-index:5;pointer-events:none}
 
 /* コピーライト */
 .copy{flex:none;text-align:center;font-size:11px;letter-spacing:.02em;padding:6px 16px calc(6px + env(safe-area-inset-bottom,0px));
-  border-top:1px solid var(--divider);color:#9a9fa8;background:var(--stage)}
+  border-top:1px solid var(--divider);color:#6b6f7a;background:var(--stage)}
 .copy.light{border-top:1px solid var(--line);color:#9a9fa8;background:transparent;margin-top:28px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
 @media print{.copy{display:none!important}}
 
@@ -144,6 +144,7 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 .toggle input{width:24px;height:24px;accent-color:var(--accent)}
 .keylog{font-variant-numeric:tabular-nums;font-size:14px;color:var(--ink-2)}
 .file{position:relative;overflow:hidden}
+.micmsg{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fdecea;color:#9b2c22;font-size:14px;line-height:1.7;font-weight:700;overflow-wrap:anywhere}
 .file input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .howto{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;font-size:14px;line-height:1.8}
 .howto ul{margin:0;padding-left:1.2em}
@@ -228,6 +229,19 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
     </div>
     <label class="toggle"><input type="checkbox" id="holdChk">設定ボタンは長押し（約1.5秒）でひらく</label>
 
+    <h2>マイク（録音）の確認</h2>
+    <div class="howto">
+      <div class="row"><button class="btn" id="micBtn" type="button">マイクを許可する</button><span class="keylog" id="micState"></span></div>
+      <p class="micmsg" id="micMsg" hidden></p>
+      <ul class="note">
+        <li>はじめて録音するときに「マイクへのアクセスを求めています」と出たら、「許可」を押してください。</li>
+        <li>「許可しない」を押してしまったとき：Safariのアドレスバーの左はしのボタン（「ぁあ」やページメニュー）→「Webサイトの設定」→「マイク」を「許可」にします。</li>
+        <li>それでも使えないとき：iPadの「設定」→「アプリ」→「Safari」→「マイク」を「確認」か「許可」にします（iPadOS 17までは「設定」→「Safari」）。</li>
+        <li>ホーム画面に追加したアプリで使えないときは、一度Safariで開いて許可してから、もう一度ためしてください。</li>
+        <li>録音できないときは、iPadの「ボイスメモ」で録った音を「ファイル」から読みこむこともできます。</li>
+      </ul>
+    </div>
+
     <h2>スイッチ（外部入力）の確認</h2>
     <div class="howto">
       <div class="keylog" id="keylog">スイッチやキーを押すと、ここに表示されます。</div>
@@ -252,7 +266,7 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.2";
+const VERSION = "v1.3";
 
 /* ---------- イラスト（SVG） ---------- */
 const S = 'stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"';
@@ -280,7 +294,7 @@ function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&l
 
 /* ---------- 設定の保存（こわれたデータでも起動できるように点検してから使う） ---------- */
 const DEF = {
-  count:1, mode:"each", debounce:500, block:false, showLabel:true, fallback:"speak", hold:true,
+  ver:2, count:1, mode:"each", debounce:500, block:true, showLabel:true, fallback:"speak", hold:true,
   slots:[
     {color:"red",   icon:"maru",  text:"はい",   keys:["Space","Enter","Digit1"]},
     {color:"blue",  icon:"batsu", text:"いいえ", keys:["Digit2"]},
@@ -296,7 +310,9 @@ function sanitize(raw){
   d.mode = pick(raw.mode, ["each","seq"], d.mode);
   d.debounce = pick(raw.debounce, [0,500,1000,2000], d.debounce);
   d.fallback = pick(raw.fallback, ["speak","chime"], d.fallback);
-  ["block","showLabel","hold"].forEach(k => { if (typeof raw[k] === "boolean") d[k] = raw[k]; });
+  ["showLabel","hold"].forEach(k => { if (typeof raw[k] === "boolean") d[k] = raw[k]; });
+  // v1.3 から「鳴っている間は反応しない」を基本にした。それより前に保存した設定も一度オンにする
+  if (raw.ver === 2 && typeof raw.block === "boolean") d.block = raw.block;
   if (Array.isArray(raw.slots)) raw.slots.slice(0,3).forEach((s, i) => {
     if (!s || typeof s !== "object") return;
     const t = d.slots[i];
@@ -311,6 +327,7 @@ const LS = "switch-voca-settings";
 let st;
 try { st = sanitize(JSON.parse(localStorage.getItem(LS))); } catch(e) { st = sanitize(null); }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(st)); } catch(e) {} };
+save();
 
 /* ---------- 音の保存（IndexedDB） ---------- */
 const idb = (() => {
@@ -374,7 +391,7 @@ if ("speechSynthesis" in window) { pickVoice(); try { speechSynthesis.addEventLi
 function unlockAudio(){
   const c = getCtx();
   if (c) {
-    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch(e) {}
+    if (!micBusy()) setSession("playback");
     try { if (c.state !== "running") c.resume(); } catch(e) {}
     try { const src = c.createBufferSource(); src.buffer = c.createBuffer(1, 1, 22050); src.connect(c.destination); src.start(0); } catch(e) {}
     for (let i=0;i<3;i++) if (blobs[i] && !buffers[i]) decodeBlob(i);
@@ -651,7 +668,7 @@ function renderSettings(){
   document.getElementById("labelChk").checked = st.showLabel;
   document.getElementById("holdChk").checked = st.hold;
   if (!noteTimer) { modeNoteEl.textContent = modeNoteText(); modeNoteEl.style.color = ""; }
-  renderCards();
+  renderCards(); refreshMicState();
 }
 function alertCard(msg){
   clearTimeout(noteTimer);
@@ -730,34 +747,103 @@ cardsEl.addEventListener("change", async e => {
   renderCards(); unlockAudio(); playSlot(i);
 });
 
+/* ---------- マイク ----------
+   iPadのSafariは、音の使い方を「再生だけ（playback）」にしているとマイクが使えない。
+   マイクを使うときだけ「再生と録音（play-and-record）」に切りかえ、終わったら戻す */
+const APP_URL = "https://eduwithdai.github.io/switch-voca/";
+function setSession(type){ try { if (navigator.audioSession && navigator.audioSession.type !== type) navigator.audioSession.type = type; } catch(e) {} }
+function micBusy(){ return !!(recState || recPending || micTesting); }
+let micTesting = false;
+function micProblem(){
+  let framed = false; try { framed = window.self !== window.top; } catch(e) { framed = true; }
+  if (framed) return "frame";
+  if (!window.isSecureContext) return "insecure";
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return "nosupport";
+  if (!window.MediaRecorder) return "norecorder";
+  return "";
+}
+const MIC_MSG = {
+  frame:"この画面（Claudeのプレビューなど）ではマイクが使えません。Safariで " + APP_URL + " を開いてください。録音しないで使うときは「ファイル」から音声を読みこめます。",
+  insecure:"マイクは https のページでしか使えません。Safariで " + APP_URL + " を開いてください。",
+  nosupport:"このブラウザはマイクに対応していません。iPadのSafariで開いてください（LINEなどのアプリの中で開いたページでは使えないことがあります）。",
+  norecorder:"このブラウザは録音に対応していません。iPadOSを新しくするか、Safariで開いてください。",
+  denied:"マイクが「許可しない」になっています。下の手順で「許可」に変えてから、ページを読みこみなおしてください。",
+  notfound:"マイクが見つかりません。",
+  busy:"マイクをほかのアプリが使っています。通話や録音をしているアプリを閉じてから、もう一度ためしてください。",
+  recorder:"録音のじゅんびでエラーが起きました。ページを読みこみなおして、もう一度ためしてください。"
+};
+function errKind(err){
+  const n = err && err.name || "";
+  if (/NotFound|DevicesNotFound|Overconstrained/.test(n)) return "notfound";
+  if (/NotReadable|TrackStart|Abort/.test(n)) return "busy";
+  return "denied";
+}
+function showMic(kind, err){
+  const box = document.getElementById("micMsg"); if (!box) return;
+  if (!kind) { box.hidden = true; return; }
+  box.textContent = MIC_MSG[kind] + (err && err.name ? "（" + err.name + "）" : "");
+  box.hidden = false;
+  box.closest(".howto").scrollIntoView({behavior:"smooth", block:"center"});
+}
+async function getMic(){
+  setSession("play-and-record");
+  try { return await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e) { if (!recState) setSession("playback"); throw e; }
+}
+async function refreshMicState(){
+  const el = document.getElementById("micState"); if (!el) return;
+  const p = micProblem();
+  if (p) { el.textContent = "この画面ではマイクが使えません"; return; }
+  try {
+    const r = await navigator.permissions.query({name:"microphone"});
+    el.textContent = r.state === "granted" ? "マイク：許可ずみ" : r.state === "denied" ? "マイク：許可されていません" : "マイク：まだ聞かれていません";
+  } catch(e) { el.textContent = ""; }
+}
+document.getElementById("micBtn").addEventListener("click", async () => {
+  const p = micProblem(); if (p) { showMic(p); return; }
+  if (micBusy()) return;
+  micTesting = true;
+  try { const s = await getMic(); s.getTracks().forEach(t => t.stop()); showMic(""); document.getElementById("micState").textContent = "マイク：使えます（許可ずみ）"; }
+  catch(err) { showMic(errKind(err), err); refreshMicState(); }
+  micTesting = false;
+  if (!recState) setSession("playback");
+});
+
 /* ---------- 録音（集音） ---------- */
 const MAX_REC = 30000;
 async function startRec(i){
   if (recState || recPending) return;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
-    alertCard("このブラウザでは録音できません。Safari / Chrome の最新版で、https のページとして開いてください。録音できない画面では「ファイル」から音声を読みこめます。"); return;
-  }
+  const p = micProblem();
+  if (p) { showMic(p); alertCard("マイクが使えません。くわしくは下の「マイク（録音）の確認」を見てください。"); return; }
   stopAll();
   recPending = true; renderCards();
   let stream = null, mr = null;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
-    const type = ["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(e) { return false; } }) || "";
-    mr = new MediaRecorder(stream, type ? {mimeType:type} : undefined);
-  } catch(err) {
-    if (stream) stream.getTracks().forEach(t => t.stop());
+  try { stream = await getMic(); }
+  catch(err) {
     recPending = false; renderCards();
-    alertCard("マイクが使えません。ブラウザの設定でマイクを「許可」にしてください。録音できない画面では「ファイル」から音声を読みこめます。");
+    showMic(errKind(err), err); refreshMicState();
+    alertCard("マイクが使えません。くわしくは下の「マイク（録音）の確認」を見てください。");
+    return;
+  }
+  try {
+    const type = ["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(e) { return false; } }) || "";
+    try { mr = new MediaRecorder(stream, type ? {mimeType:type} : undefined); }
+    catch(e) { mr = new MediaRecorder(stream); }
+  } catch(err) {
+    stream.getTracks().forEach(t => t.stop()); setSession("playback");
+    recPending = false; renderCards(); showMic("recorder", err);
     return;
   }
   recPending = false;
-  if (settingsEl.hidden || i >= st.count) { stream.getTracks().forEach(t => t.stop()); renderCards(); return; }
+  showMic(""); refreshMicState();
+  if (settingsEl.hidden || i >= st.count) { stream.getTracks().forEach(t => t.stop()); setSession("playback"); renderCards(); return; }
   const chunks = [];
   const r = {i, mr, stream, t0: Date.now(), src:null, an:null, buf:null, timer:0, raf:0, keep:true};
   mr.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
   mr.onerror = () => { r.keep = false; stopRec(); alertCard("録音中にエラーが起きました。もう一度ためしてください。"); };
   mr.onstop = async () => {
     stream.getTracks().forEach(t => t.stop());
+    setSession("playback");
     try { r.src && r.src.disconnect(); } catch(e) {}
     const blob = new Blob(chunks, {type: mr.mimeType || chunks[0]?.type || "audio/mp4"});
     if (r.keep && blob.size > 0 && Date.now() - r.t0 > 300) {
@@ -771,7 +857,7 @@ async function startRec(i){
     const c = getCtx(); if (c.state !== "running") c.resume();
     r.src = c.createMediaStreamSource(stream); r.an = c.createAnalyser(); r.an.fftSize = 512; r.src.connect(r.an); r.buf = new Uint8Array(r.an.fftSize);
   } catch(err) { r.an = null; }
-  try { mr.start(250); } catch(err) { stream.getTracks().forEach(t => t.stop()); renderCards(); alertCard("録音を始められませんでした。もう一度ためしてください。"); return; }
+  try { mr.start(250); } catch(err) { stream.getTracks().forEach(t => t.stop()); setSession("playback"); renderCards(); showMic("recorder", err); return; }
   recState = r;
   renderCards();
   r.timer = setInterval(() => {
@@ -793,12 +879,17 @@ function stopRec(keep){
   const r = recState; recState = null;
   if (keep === false) r.keep = false;
   clearInterval(r.timer); cancelAnimationFrame(r.raf);
-  try { if (r.mr.state !== "inactive") r.mr.stop(); else r.stream.getTracks().forEach(t => t.stop()); } catch(e) { try { r.stream.getTracks().forEach(t => t.stop()); } catch(e2) {} }
+  try { if (r.mr.state !== "inactive") r.mr.stop(); else { r.stream.getTracks().forEach(t => t.stop()); setSession("playback"); } } catch(e) { try { r.stream.getTracks().forEach(t => t.stop()); } catch(e2) {} setSession("playback"); }
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") stopRec(); });
 
 /* ---------- 更新履歴 ---------- */
 const HISTORY = [
+  {v:"v1.3", d:"2026-11-06", items:[
+    "つかう画面の背景を黒にして、ボタンが光って目立つように変更",
+    "「音が鳴っているあいだは、次の入力に反応しない」をはじめからオンに変更",
+    "iPadで「マイクが使えません」となる問題を修正（マイクを使うときだけ、録音できる音のモードに切りかえる）",
+    "設定に「マイク（録音）の確認」を追加（マイクを許可するボタン、使えないときの理由と直し方を表示）"]},
   {v:"v1.2", d:"2026-11-06", items:[
     "ダークモードをなくし、つかう画面も明るい画面だけで表示するように変更",
     "設定画面のタイトルの左にアイコンを追加",
