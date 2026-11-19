@@ -148,6 +148,14 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 .toggle input{width:24px;height:24px;accent-color:var(--accent)}
 .keylog{font-variant-numeric:tabular-nums;font-size:14px;color:var(--ink-2)}
 .file{position:relative;overflow:hidden}
+.samples{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px}
+.smp{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;min-height:52px;border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font:inherit;color:var(--ink)}
+.smp b{font-size:18px;line-height:1.1;white-space:nowrap}
+.smp span{white-space:nowrap;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.smp[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+.smp[aria-pressed="true"] span{color:#d6d9e0}
+.smp:disabled{opacity:.45}
+.smp:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .trim{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:12px;background:#f7f5f0;border:1px solid var(--line)}
 .wave{display:block;width:100%;height:84px;border-radius:8px;background:#fff;touch-action:none;cursor:ew-resize}
 .trim-info{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums;line-height:1.5}
@@ -275,7 +283,7 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.42";
+const VERSION = "v1.5";
 
 /* ---------- イラスト（SVG） ---------- */
 const S = 'stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"';
@@ -299,6 +307,15 @@ const COLORS = {
   blue:{c:"var(--blue)",ink:"#fff",name:"あお"},
   green:{c:"var(--green)",ink:"#fff",name:"みどり"}
 };
+/* 添付されたサンプル音声（samples/ フォルダ） */
+const SAMPLES = [
+  {id:1, file:"samples/sample1.mp3", sec:2.1},
+  {id:2, file:"samples/sample2.mp3", sec:4.2},
+  {id:3, file:"samples/sample3.mp3", sec:21.7},
+  {id:4, file:"samples/sample4.mp3", sec:4.5},
+  {id:5, file:"samples/sample5.mp3", sec:3.4},
+  {id:6, file:"samples/sample6.mp3", sec:25.1}
+];
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
 
 /* ---------- 設定の保存（こわれたデータでも起動できるように点検してから使う） ---------- */
@@ -329,6 +346,7 @@ function sanitize(raw){
     if (ICONS[s.icon]) t.icon = s.icon;
     if (typeof s.text === "string") t.text = s.text.slice(0, 20);
     if (Array.isArray(s.keys)) t.keys = [...new Set(s.keys.filter(k => typeof k === "string" && k))].slice(0, 8);
+    if (SAMPLES.some(x => x.id === s.sample)) t.sample = s.sample;
   });
   return d;
 }
@@ -707,7 +725,7 @@ function renderCards(){
     const sw = Object.entries(COLORS).map(([k,v]) => `<button type="button" class="sw" data-act="color" data-i="${i}" data-v="${k}" style="--c:${v.c}" aria-label="${v.name}" aria-pressed="${s.color===k}"></button>`).join("");
     const ic = Object.entries(ICONS).map(([k,v]) => `<button type="button" class="ic" data-act="icon" data-i="${i}" data-v="${k}" aria-label="${v.name}" aria-pressed="${s.icon===k}">${k==="none"?'<span class="none">なし</span>':iconSVG(k)}</button>`).join("");
     const keys = s.keys.map(k => `<span class="chip">${esc(keyName(k))}</span>`).join("") || `<span class="note">なし（画面タップのみ）</span>`;
-    const status = blobs[i] ? "録音した音が鳴ります" : (st.fallback==="speak" ? (s.text.trim() ? "録音なし（ことばを読み上げます）" : "録音なし・ことばなし（チャイムが鳴ります）") : "録音なし（チャイムが鳴ります）");
+    const status = blobs[i] ? (s.sample ? "サンプル" + s.sample + "が鳴ります" : "録音した音が鳴ります") : (st.fallback==="speak" ? (s.text.trim() ? "録音なし（ことばを読み上げます）" : "録音なし・ことばなし（チャイムが鳴ります）") : "録音なし（チャイムが鳴ります）");
     return `<div class="card">
       <div class="card-h"><div class="mini" style="--c:${col.c};--dink:${col.ink}">${iconSVG(s.icon)}</div><b>${st.mode==="seq"?(i+1)+"ばんめ":(i+1)+"つ目"}のボタン</b></div>
       <div><label for="tx${i}">ことば</label><input type="text" id="tx${i}" data-act="text" data-i="${i}" value="${esc(s.text)}" placeholder="例：おかわり" maxlength="20" autocomplete="off"></div>
@@ -731,6 +749,9 @@ function renderCards(){
         ${blobs[i]&&!isRec?`<button type="button" class="btn" data-act="del" data-i="${i}">音をけす</button>`:""}
         <span class="btn file">ファイル<input type="file" accept="audio/*" data-act="file" data-i="${i}" aria-label="音声ファイルを読みこむ" ${recState||recPending?"disabled":""}></span>
       </div>
+      <div><label>サンプル音声</label>
+        <div class="samples">${SAMPLES.map(x => `<button type="button" class="smp" data-act="sample" data-i="${i}" data-v="${x.id}" aria-label="サンプル${x.id}" aria-pressed="${s.sample===x.id}" ${recState||recPending||sampleLoading===i?"disabled":""}><b>${x.id}</b><span>${x.sec<10?x.sec.toFixed(1):Math.round(x.sec)}秒</span></button>`).join("")}</div>
+      </div>
       <div><label>スイッチ</label>
         <div class="keys" style="margin-top:6px">${keys}</div>
         <div class="row" style="margin-top:8px">
@@ -753,7 +774,8 @@ cardsEl.addEventListener("click", async e => {
     case "color": s.color = b.dataset.v; break;
     case "icon": s.icon = b.dataset.v; break;
     case "play": playSlot(i); return;
-    case "del": await clearAudio(i); break;
+    case "del": await clearAudio(i); s.sample = null; break;
+    case "sample": loadSample(i, +b.dataset.v); return;
     case "autotrim": if (origBufs[i] && edits[i]) { const t = autoTrim(origBufs[i]); edits[i].start = t.start; edits[i].end = t.end; applyEdit(i, true); } return;
     case "fulltrim": if (origBufs[i] && edits[i]) { edits[i].start = 0; edits[i].end = origBufs[i].duration; applyEdit(i, true); } return;
     case "rec": recState ? stopRec() : startRec(i); return;
@@ -775,6 +797,7 @@ cardsEl.addEventListener("change", async e => {
   if (!f) return;
   if (f.size > 20 * 1024 * 1024) { alertCard("ファイルが大きすぎます（20MBまで）。短い音にしてください。"); return; }
   unlockAudio();
+  st.slots[i].sample = null; save();
   await importAudio(i, f);
 });
 
@@ -892,7 +915,23 @@ function decodeTo(blob){
 }
 const SAVE_FAIL = "音を保存できませんでした。この画面を閉じると消えます（プライベートブラウズでは保存されません）。";
 /* 録音・ファイルを取りこむ */
-async function importAudio(i, blob){
+let sampleLoading = -1;
+async function loadSample(i, id){
+  const smp = SAMPLES.find(x => x.id === id); if (!smp || sampleLoading >= 0 || recState || recPending) return;
+  sampleLoading = i; renderCards();
+  try {
+    const r = await fetch(smp.file); if (!r.ok) throw new Error(r.status);
+    const blob = await r.blob();
+    st.slots[i].sample = id; save();
+    sampleLoading = -1;
+    await importAudio(i, blob, {clean:false});   // サンプルはきれいな音なので、雑音をへらす処理はかけない
+  } catch(e) {
+    sampleLoading = -1; renderCards();
+    alertCard("サンプル音声を読みこめませんでした。インターネットにつながっているか確かめて、もう一度ためしてください。");
+  }
+}
+async function importAudio(i, blob, opts){
+  opts = opts || {};
   editGen[i]++;
   let buf = null;
   try { buf = await decodeTo(blob); } catch(e) {}
@@ -908,7 +947,7 @@ async function importAudio(i, blob){
   editBusy[i] = true; if (!settingsEl.hidden) renderCards();
   await new Promise(r => setTimeout(r, 30));
   const t = autoTrim(buf);
-  edits[i] = {start:t.start, end:t.end, clean:true};
+  edits[i] = {start:t.start, end:t.end, clean:opts.clean !== false};
   await applyEdit(i, true);
 }
 async function applyEdit(i, play){
@@ -1094,6 +1133,7 @@ async function startRec(i){
     try { r.src && r.src.disconnect(); } catch(e) {}
     const blob = new Blob(chunks, {type: mr.mimeType || chunks[0]?.type || "audio/mp4"});
     if (r.keep && blob.size > 0 && Date.now() - r.t0 > 300) {
+      st.slots[i].sample = null; save();
       await importAudio(i, blob);
     } else if (!settingsEl.hidden) renderCards();
   };
@@ -1130,6 +1170,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 /* ---------- 更新履歴 ---------- */
 const HISTORY = [
+  {v:"v1.5", d:"2026-11-19", items:[
+    "サンプル音声を6つ追加。ボタンごとに「サンプル音声」からえらんで鳴らせるように変更"]},
   {v:"v1.42", d:"2026-11-08", items:[
     "アプリのアイコンを、スピーカーのマークから「はい」の文字に変更"]},
   {v:"v1.41", d:"2026-11-08", items:[
