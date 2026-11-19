@@ -283,7 +283,7 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.51";
+const VERSION = "v1.52";
 
 /* ---------- イラスト（SVG） ---------- */
 const S = 'stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"';
@@ -309,12 +309,9 @@ const COLORS = {
 };
 /* 添付されたサンプル音声（samples/ フォルダ） */
 const SAMPLES = [
-  {id:1, name:"こちらへどうぞ",   file:"samples/sample1.mp3", sec:2.1},
-  {id:2, name:"いらっしゃいませ", file:"samples/sample2.mp3", sec:4.2},
-  {id:3, name:"説明",             file:"samples/sample3.mp3", sec:21.7},
-  {id:4, name:"いらっしゃいませ②", file:"samples/sample4.mp3", sec:4.5},
-  {id:5, name:"こちらへどうぞ②",   file:"samples/sample5.mp3", sec:3.4},
-  {id:6, name:"説明②",            file:"samples/sample6.mp3", sec:25.1}
+  {id:7, name:"こちらへどうぞ",   file:"samples/kochira-e-douzo.mp3", sec:2.2},
+  {id:8, name:"いらっしゃいませ", file:"samples/irasshaimase.mp3",    sec:4.8},
+  {id:9, name:"説明",             file:"samples/setsumei.mp3",        sec:25.4}
 ];
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
 
@@ -1170,6 +1167,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 /* ---------- 更新履歴 ---------- */
 const HISTORY = [
+  {v:"v1.52", d:"2026-11-19", items:[
+    "サンプル音声を新しい3つ（こちらへどうぞ、いらっしゃいませ、説明）に入れかえ"]},
   {v:"v1.51", d:"2026-11-19", items:[
     "サンプル音声のボタンに、番号のかわりに中身のことば（こちらへどうぞ、いらっしゃいませ、説明など）を表示するように変更"]},
   {v:"v1.5", d:"2026-11-19", items:[
