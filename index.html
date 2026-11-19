@@ -148,9 +148,9 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 .toggle input{width:24px;height:24px;accent-color:var(--accent)}
 .keylog{font-variant-numeric:tabular-nums;font-size:14px;color:var(--ink-2)}
 .file{position:relative;overflow:hidden}
-.samples{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px}
-.smp{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;min-height:52px;border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font:inherit;color:var(--ink)}
-.smp b{font-size:18px;line-height:1.1;white-space:nowrap}
+.samples{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:6px}
+.smp{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;min-height:48px;border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font:inherit;color:var(--ink)}
+.smp b{font-size:15px;line-height:1.25;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .smp span{white-space:nowrap;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .smp[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
 .smp[aria-pressed="true"] span{color:#d6d9e0}
@@ -283,7 +283,7 @@ h2{font-size:15px;color:var(--ink-2);margin:26px 0 10px;font-weight:700;letter-s
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.5";
+const VERSION = "v1.51";
 
 /* ---------- イラスト（SVG） ---------- */
 const S = 'stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"';
@@ -309,12 +309,12 @@ const COLORS = {
 };
 /* 添付されたサンプル音声（samples/ フォルダ） */
 const SAMPLES = [
-  {id:1, file:"samples/sample1.mp3", sec:2.1},
-  {id:2, file:"samples/sample2.mp3", sec:4.2},
-  {id:3, file:"samples/sample3.mp3", sec:21.7},
-  {id:4, file:"samples/sample4.mp3", sec:4.5},
-  {id:5, file:"samples/sample5.mp3", sec:3.4},
-  {id:6, file:"samples/sample6.mp3", sec:25.1}
+  {id:1, name:"こちらへどうぞ",   file:"samples/sample1.mp3", sec:2.1},
+  {id:2, name:"いらっしゃいませ", file:"samples/sample2.mp3", sec:4.2},
+  {id:3, name:"説明",             file:"samples/sample3.mp3", sec:21.7},
+  {id:4, name:"いらっしゃいませ②", file:"samples/sample4.mp3", sec:4.5},
+  {id:5, name:"こちらへどうぞ②",   file:"samples/sample5.mp3", sec:3.4},
+  {id:6, name:"説明②",            file:"samples/sample6.mp3", sec:25.1}
 ];
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
 
@@ -725,7 +725,7 @@ function renderCards(){
     const sw = Object.entries(COLORS).map(([k,v]) => `<button type="button" class="sw" data-act="color" data-i="${i}" data-v="${k}" style="--c:${v.c}" aria-label="${v.name}" aria-pressed="${s.color===k}"></button>`).join("");
     const ic = Object.entries(ICONS).map(([k,v]) => `<button type="button" class="ic" data-act="icon" data-i="${i}" data-v="${k}" aria-label="${v.name}" aria-pressed="${s.icon===k}">${k==="none"?'<span class="none">なし</span>':iconSVG(k)}</button>`).join("");
     const keys = s.keys.map(k => `<span class="chip">${esc(keyName(k))}</span>`).join("") || `<span class="note">なし（画面タップのみ）</span>`;
-    const status = blobs[i] ? (s.sample ? "サンプル" + s.sample + "が鳴ります" : "録音した音が鳴ります") : (st.fallback==="speak" ? (s.text.trim() ? "録音なし（ことばを読み上げます）" : "録音なし・ことばなし（チャイムが鳴ります）") : "録音なし（チャイムが鳴ります）");
+    const status = blobs[i] ? (s.sample ? "サンプル「" + ((SAMPLES.find(x => x.id === s.sample) || {}).name || "") + "」が鳴ります" : "録音した音が鳴ります") : (st.fallback==="speak" ? (s.text.trim() ? "録音なし（ことばを読み上げます）" : "録音なし・ことばなし（チャイムが鳴ります）") : "録音なし（チャイムが鳴ります）");
     return `<div class="card">
       <div class="card-h"><div class="mini" style="--c:${col.c};--dink:${col.ink}">${iconSVG(s.icon)}</div><b>${st.mode==="seq"?(i+1)+"ばんめ":(i+1)+"つ目"}のボタン</b></div>
       <div><label for="tx${i}">ことば</label><input type="text" id="tx${i}" data-act="text" data-i="${i}" value="${esc(s.text)}" placeholder="例：おかわり" maxlength="20" autocomplete="off"></div>
@@ -750,7 +750,7 @@ function renderCards(){
         <span class="btn file">ファイル<input type="file" accept="audio/*" data-act="file" data-i="${i}" aria-label="音声ファイルを読みこむ" ${recState||recPending?"disabled":""}></span>
       </div>
       <div><label>サンプル音声</label>
-        <div class="samples">${SAMPLES.map(x => `<button type="button" class="smp" data-act="sample" data-i="${i}" data-v="${x.id}" aria-label="サンプル${x.id}" aria-pressed="${s.sample===x.id}" ${recState||recPending||sampleLoading===i?"disabled":""}><b>${x.id}</b><span>${x.sec<10?x.sec.toFixed(1):Math.round(x.sec)}秒</span></button>`).join("")}</div>
+        <div class="samples">${SAMPLES.map(x => `<button type="button" class="smp" data-act="sample" data-i="${i}" data-v="${x.id}" aria-label="${esc(x.name)}" aria-pressed="${s.sample===x.id}" ${recState||recPending||sampleLoading===i?"disabled":""}><b>${esc(x.name)}</b><span>${x.sec<10?x.sec.toFixed(1):Math.round(x.sec)}秒</span></button>`).join("")}</div>
       </div>
       <div><label>スイッチ</label>
         <div class="keys" style="margin-top:6px">${keys}</div>
@@ -1170,6 +1170,8 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 /* ---------- 更新履歴 ---------- */
 const HISTORY = [
+  {v:"v1.51", d:"2026-11-19", items:[
+    "サンプル音声のボタンに、番号のかわりに中身のことば（こちらへどうぞ、いらっしゃいませ、説明など）を表示するように変更"]},
   {v:"v1.5", d:"2026-11-19", items:[
     "サンプル音声を6つ追加。ボタンごとに「サンプル音声」からえらんで鳴らせるように変更"]},
   {v:"v1.42", d:"2026-11-08", items:[
